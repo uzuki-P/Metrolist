@@ -67,6 +67,7 @@ internal val navigationSavedStateConfiguration =
                     subclass(Screen.HomeSection::class, Screen.HomeSection.serializer())
                     subclass(Screen.Browse::class, Screen.Browse.serializer())
                     subclass(Screen.Integrations::class, Screen.Integrations.serializer())
+                    subclass(Screen.SettingsPage::class, Screen.SettingsPage.serializer())
                     subclass(Screen.Discord::class, Screen.Discord.serializer())
                     subclass(Screen.LastFm::class, Screen.LastFm.serializer())
                     subclass(Screen.ListenBrainz::class, Screen.ListenBrainz.serializer())

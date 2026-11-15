@@ -57,6 +57,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.metrolist.android.LocalListenTogetherManager
 import com.metrolist.android.LocalPlaylistAdder
+import com.metrolist.android.MainActivity
 import com.metrolist.android.listentogether.AndroidListenTogetherManager
 import com.metrolist.android.playback.AudioCacheManager
 import com.metrolist.android.playback.LocalPlayerConnection
@@ -75,6 +76,7 @@ import com.metrolist.shared.generated.resources.disliked_song
 import com.metrolist.shared.generated.resources.download_not_found
 import com.metrolist.shared.generated.resources.equalizer
 import com.metrolist.shared.generated.resources.listen_together
+import com.metrolist.shared.generated.resources.lyrics_settings
 import com.metrolist.shared.generated.resources.music_video_quality_auto
 import com.metrolist.shared.generated.resources.music_video_quality_resolution
 import com.metrolist.shared.generated.resources.music_video_resolution
@@ -125,6 +127,7 @@ import com.metrolist.shared.ui.navigation.NavigationBackHandler
 import com.metrolist.shared.ui.navigation.acceptsInput
 import com.metrolist.shared.ui.navigation.blockInput
 import com.metrolist.shared.ui.navigation.rememberNavigationMotion
+import com.metrolist.shared.ui.settings.SettingsPageId
 import com.metrolist.shared.ui.theme.ComponentShapes
 import com.metrolist.shared.utils.formatPlaybackSpeed
 import com.metrolist.shared.viewmodels.PlayerViewModel
@@ -409,6 +412,18 @@ fun PlayerMenu(
                                 PlayerMenuActionGroup(
                                     actions =
                                         buildList {
+                                            add(
+                                                PlayerMenuAction(
+                                                    icon = MetrolistIcons.Outlined.Lyrics,
+                                                    title = stringResource(Res.string.lyrics_settings),
+                                                    onClick = {
+                                                        onDismiss()
+                                                        context.startActivity(
+                                                            MainActivity.settingsPageIntent(context, SettingsPageId.LYRICS),
+                                                        )
+                                                    },
+                                                ),
+                                            )
                                             artistAction?.let(::add)
                                             albumNavigationMenuAction(
                                                 onDismiss,

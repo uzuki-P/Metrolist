@@ -32,6 +32,12 @@ sealed class Screen : NavKey {
     @Serializable
     data object Settings : Screen()
 
+    /** Settings opened on one page; [page] is a [com.metrolist.shared.ui.settings.SettingsPageId] name. */
+    @Serializable
+    data class SettingsPage(
+        val page: String,
+    ) : Screen()
+
     @Serializable
     data object Statistics : Screen()
 

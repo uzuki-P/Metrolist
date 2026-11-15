@@ -505,16 +505,28 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
             icon = MetrolistIcons.Outlined.Lyrics,
             tone = SettingsTone.ROSE,
         ) {
-            group("window", stringResource(Res.string.floating_lyrics_title)) {
+            val enabled = settings.floatingLyricsEnabled
+            val percent = stringResource(Res.string.percent_symbol)
+            group("floatingLyricsMaster", "") {
                 mainSwitch(
                     id = "floatingLyricsEnabled",
                     title = stringResource(Res.string.floating_lyrics_enable),
-                    checked = settings.floatingLyricsEnabled,
+                    checked = enabled,
+                    description = stringResource(Res.string.floating_lyrics_description),
                 ) { settings.floatingLyricsEnabled = it }
+            }
+            group("floatingLyricsWindow", stringResource(Res.string.floating_lyrics_window), enabled = enabled) {
                 switch(
                     id = "floatingLyricsClickThrough",
                     title = stringResource(Res.string.floating_lyrics_click_through),
-                    description = stringResource(Res.string.floating_lyrics_click_through_description),
+                    description =
+                        stringResource(
+                            if (host.platform == SettingsPlatform.DESKTOP) {
+                                Res.string.floating_lyrics_click_through_description_desktop
+                            } else {
+                                Res.string.floating_lyrics_click_through_description
+                            },
+                        ),
                     checked = settings.floatingLyricsClickThrough,
                 ) { settings.floatingLyricsClickThrough = it }
                 switch(
@@ -522,25 +534,25 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                     title = stringResource(Res.string.floating_lyrics_next_line),
                     checked = settings.floatingLyricsShowNextLine,
                 ) { settings.floatingLyricsShowNextLine = it }
+            }
+            group("floatingLyricsAppearance", stringResource(Res.string.appearance_title), enabled = enabled) {
                 slider(
                     id = "floatingLyricsTextScale",
                     title = stringResource(Res.string.floating_lyrics_text_size),
-                    valueLabel = "${(settings.floatingLyricsTextScale * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}",
+                    valueLabel = "${(settings.floatingLyricsTextScale * 100).roundToInt()}$percent",
                     value = settings.floatingLyricsTextScale,
                     range = FLOATING_LYRICS_MIN_TEXT_SCALE..FLOATING_LYRICS_MAX_TEXT_SCALE,
                     steps = 13,
-                    valueFormatter = { "${(it * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}" },
+                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
                 ) { settings.floatingLyricsTextScale = it }
                 slider(
                     id = "floatingLyricsBackground",
                     title = stringResource(Res.string.floating_lyrics_background),
-                    valueLabel = "${(settings.floatingLyricsBackgroundOpacity * 100).roundToInt()}${stringResource(
-                        Res.string.percent_symbol,
-                    )}",
+                    valueLabel = "${(settings.floatingLyricsBackgroundOpacity * 100).roundToInt()}$percent",
                     value = settings.floatingLyricsBackgroundOpacity,
                     range = 0f..1f,
                     steps = 19,
-                    valueFormatter = { "${(it * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}" },
+                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
                 ) { settings.floatingLyricsBackgroundOpacity = it }
             }
         }

@@ -128,6 +128,7 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToDownloads: () -> Unit,
     onNavigateToArtist: (String) -> Unit = {},
+    initialPage: SettingsPageId? = null,
 ) {
     val pageViewModels = rememberViewModelStoreProvider()
     var currentPage by remember { mutableStateOf<SettingsPageId?>(null) }
@@ -381,6 +382,7 @@ fun SettingsScreen(
             host =
                 SharedSettingsHost(
                     platform = SettingsPlatform.ANDROID,
+                    initialPage = initialPage,
                     lyricsPreview = { modifier ->
                         val viewModel: PlayerViewModel = koinInject()
                         val castState = playerConnection?.castState?.collectAsState()?.value

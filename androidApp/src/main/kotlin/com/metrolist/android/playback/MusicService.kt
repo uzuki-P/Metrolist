@@ -936,13 +936,14 @@ class MusicService :
                 mediaSession?.setMediaButtonPreferences(
                     ImmutableList.copyOf(
                         transportButtons() +
+                            listOf(createLikeButton()) +
+                            floatingLyricsButtons() +
                             listOf(
-                                createLikeButton(),
                                 createRepeatButton(),
                                 createShuffleButton(),
                                 createRadioButton(startRadioLabel),
                                 createAddToPlaylistButton(),
-                            ) + floatingLyricsButtons(),
+                            ),
                     ),
                 )
             }
@@ -2160,7 +2161,7 @@ class MusicService :
             .setCustomIconResId(iconRes)
             .setDisplayName(getString(label))
             .setSessionCommand(MediaSessionConstants.CommandToggleRepeat)
-            .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
+            .setSlots(CommandButton.SLOT_OVERFLOW)
             .setEnabled(player.currentSong.value != null)
             .build()
     }
@@ -2191,7 +2192,7 @@ class MusicService :
                 .setCustomIconResId(if (shown) R.drawable.ic_notification_lyrics_off else R.drawable.ic_notification_lyrics)
                 .setDisplayName(getString(if (shown) R.string.floating_lyrics_hide else R.string.floating_lyrics_show))
                 .setSessionCommand(MediaSessionConstants.CommandToggleFloatingLyrics)
-                .setSlots(CommandButton.SLOT_OVERFLOW)
+                .setSlots(CommandButton.SLOT_FORWARD_SECONDARY, CommandButton.SLOT_OVERFLOW)
                 .build()
         if (!shown) return listOf(toggle)
         val locked = Settings.shared.floatingLyricsClickThrough

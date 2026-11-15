@@ -73,6 +73,7 @@ import com.metrolist.shared.state.GlobalYouTubeRepository
 import com.metrolist.shared.state.applyContentRegion
 import com.metrolist.shared.ui.LocalIsInPipMode
 import com.metrolist.shared.ui.LocalIsTv
+import com.metrolist.shared.ui.settings.SettingsPageId
 import com.metrolist.shared.ui.theme.appearanceDensity
 import com.metrolist.shared.youtube.playback.AndroidTokenProvider
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
@@ -112,6 +113,19 @@ class MainActivity : ComponentActivity() {
         const val ACTION_LOGIN = "com.metrolist.music.action.LOGIN"
         const val ACTION_BACKUP_RESTORE = "com.metrolist.music.action.BACKUP_RESTORE"
         const val ACTION_RECOGNITION = "com.metrolist.music.action.RECOGNITION"
+        const val ACTION_SETTINGS_PAGE = "com.metrolist.music.action.SETTINGS_PAGE"
+        const val EXTRA_SETTINGS_PAGE = "settings_page"
+
+        /** Opens the app on one settings page; also usable from the playback service and its overlay window. */
+        fun settingsPageIntent(
+            context: Context,
+            page: SettingsPageId,
+        ): Intent =
+            Intent(context, MainActivity::class.java)
+                .setAction(ACTION_SETTINGS_PAGE)
+                .putExtra(EXTRA_SETTINGS_PAGE, page.name)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
         const val ACTION_OPEN_WIDGET_TARGET = "com.metrolist.music.action.OPEN_WIDGET_TARGET"
         const val EXTRA_WIDGET_TARGET_TYPE = "widget_target_type"
         const val EXTRA_WIDGET_TARGET_ID = "widget_target_id"

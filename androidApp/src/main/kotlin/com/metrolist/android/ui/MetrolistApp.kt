@@ -1173,6 +1173,10 @@ fun MetrolistApp(
                                 navigator.navigate(Screen.Settings)
                             }
 
+                            is IncomingDestination.SettingsPage -> {
+                                navigator.navigate(Screen.SettingsPage(destination.page))
+                            }
+
                             IncomingDestination.Login -> {
                                 navigator.navigate(Screen.Login)
                             }
@@ -2184,6 +2188,10 @@ sealed class IncomingDestination {
 
     object Settings : IncomingDestination()
 
+    data class SettingsPage(
+        val page: String,
+    ) : IncomingDestination()
+
     object Login : IncomingDestination()
 
     object BackupRestore : IncomingDestination()
@@ -2271,6 +2279,7 @@ fun Intent.toIncomingDestination(): IncomingDestination? {
         MainActivity.ACTION_UPDATES -> IncomingDestination.Updates
         MainActivity.ACTION_LOGIN -> IncomingDestination.Login
         Intent.ACTION_APPLICATION_PREFERENCES -> IncomingDestination.Settings
+        MainActivity.ACTION_SETTINGS_PAGE -> getStringExtra(MainActivity.EXTRA_SETTINGS_PAGE)?.let(IncomingDestination::SettingsPage)
         MainActivity.ACTION_BACKUP_RESTORE -> IncomingDestination.BackupRestore
         MainActivity.ACTION_RECOGNITION -> IncomingDestination.Recognition
         else -> null
@@ -2713,6 +2722,15 @@ fun getEntryProvider(
                 },
                 onNavigateToDownloads = { navigator.navigate(Screen.AutoPlaylist("downloaded")) },
                 onNavigateToArtist = { artistId -> navigator.navigate(Screen.Artist(artistId)) },
+            )
+        }
+
+        entry<Screen.SettingsPage>(metadata = navTabMetadata) { route ->
+            SettingsScreen(
+                onNavigateBack = { navigator.goBack() },
+                onNavigateToDownloads = { navigator.navigate(Screen.AutoPlaylist("downloaded")) },
+                onNavigateToArtist = { artistId -> navigator.navigate(Screen.Artist(artistId)) },
+                initialPage = SettingsPageId.entries.firstOrNull { it.name == route.page },
             )
         }
 
