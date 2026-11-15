@@ -4441,6 +4441,8 @@
     <string name="tray_show_window">Show window</string>
     <string name="desktop_minimize_to_tray">Minimize to tray</string>
     <string name="desktop_minimize_to_tray_desc">Closing the window will minimize Metrolist to the tray instead</string>
+    <string name="desktop_hide_to_tray_on_minimize">Hide to tray when minimized</string>
+    <string name="desktop_hide_to_tray_on_minimize_desc">Minimizing the window hides it to the tray instead of the taskbar</string>
     <string name="desktop_tray_toggle_on_click">Hide or show on tray click</string>
     <string name="desktop_tray_toggle_on_click_desc">Left-clicking the tray icon will open or close the Metrolist window</string>
     <!-- Translators: Imperative action label for show miniplayer in the desktop system tray. -->

@@ -1313,6 +1313,8 @@ private fun runDesktopApp(args: Array<String>) {
             LaunchedEffect(windowState.isMinimized) {
                 if (windowState.isMinimized) {
                     placementBeforeMinimize.value = windowState.placement
+                    // The tray's show action clears isMinimized, which restores the saved placement below.
+                    if (Settings.shared.hideToTrayOnMinimize) ComposeTrayManager.hideWindow()
                 } else {
                     placementBeforeMinimize.value?.let { saved ->
                         windowState.placement = saved

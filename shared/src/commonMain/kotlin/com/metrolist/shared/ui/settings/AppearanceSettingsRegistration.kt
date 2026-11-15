@@ -301,6 +301,12 @@ internal fun SettingsUiRegistryBuilder.registerAppearanceSettings(host: SharedSe
                     checked = settings.minimizeToTrayOnClose,
                 ) { settings.minimizeToTrayOnClose = it }
                 switch(
+                    id = "hideToTrayOnMinimize",
+                    title = stringResource(Res.string.desktop_hide_to_tray_on_minimize),
+                    description = stringResource(Res.string.desktop_hide_to_tray_on_minimize_desc),
+                    checked = settings.hideToTrayOnMinimize,
+                ) { settings.hideToTrayOnMinimize = it }
+                switch(
                     id = "desktopTrayToggleOnClick",
                     title = stringResource(Res.string.desktop_tray_toggle_on_click),
                     description = stringResource(Res.string.desktop_tray_toggle_on_click_desc),
