@@ -22,9 +22,9 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
+import androidx.compose.ui.awt.SwingWindow
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.window.Window
 import com.metrolist.desktop.state.app.UiState
 import com.metrolist.desktop.state.playback.LyricsState
 import com.metrolist.desktop.state.playback.PlayerState
@@ -75,7 +75,7 @@ fun FloatingLyricsWindow() {
     }
 
     val title = stringResource(Res.string.floating_lyrics_title)
-    Window(
+    SwingWindow(
         create = {
             val bounds =
                 resolveFloatingLyricsBounds(
@@ -87,9 +87,9 @@ fun FloatingLyricsWindow() {
                 )
             ComposeWindow().apply {
                 this.title = title
-                // Only applies while the window is not displayable yet, which is why the window
-                // is created here instead of through Window's parameters. The taskbar skip
-                // states below cover window managers that still list utility windows.
+                // The type only applies before the window is displayable, so it is set here. Under
+                // XWayland KWin still reports _NET_WM_WINDOW_TYPE_NORMAL, so the taskbar skip
+                // states sent after mapping are what keep it out of the taskbar there.
                 type = AwtWindow.Type.UTILITY
                 isUndecorated = true
                 isTransparent = true
