@@ -42,6 +42,7 @@
         android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <!-- Required by the user-initiated updater in direct-distribution builds. -->
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"

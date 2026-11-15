@@ -25,6 +25,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
@@ -43,6 +44,7 @@ import com.metrolist.android.BuildConfig
 import com.metrolist.android.LocalMiniPlayerBottomInset
 import com.metrolist.android.R
 import com.metrolist.android.extensions.findActivity
+import com.metrolist.android.floatinglyrics.FloatingLyricsPermission
 import com.metrolist.android.locale.AppLocale
 import com.metrolist.android.locale.rememberAppLanguageChoices
 import com.metrolist.android.playback.AudioCacheManager
@@ -87,6 +89,7 @@ import com.metrolist.shared.generated.resources.app_font_reset_description
 import com.metrolist.shared.generated.resources.app_language_system
 import com.metrolist.shared.generated.resources.calculating
 import com.metrolist.shared.generated.resources.device_language
+import com.metrolist.shared.generated.resources.floating_lyrics_permission
 import com.metrolist.shared.generated.resources.search_history_removal_failed
 import com.metrolist.shared.generated.resources.settings_storage_summary
 import com.metrolist.shared.generated.resources.settings_updates_available_description
@@ -109,6 +112,7 @@ import com.metrolist.shared.ui.utils.rememberFileSizeFormatter
 import com.metrolist.shared.viewmodels.PlayerViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.getString
@@ -324,6 +328,7 @@ fun SettingsScreen(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
+    FloatingLyricsPermissionEffect()
 
     val availablePages =
         buildSet {
@@ -335,6 +340,7 @@ fun SettingsScreen(
             add(SettingsPageId.LYRICS_AI_TRANSLATION)
             add(SettingsPageId.LYRICS_AI_SKIP_LANGUAGES)
             add(SettingsPageId.LYRICS_ROMANIZATION)
+            add(SettingsPageId.FLOATING_LYRICS)
             add(SettingsPageId.HIDDEN_HOME_ITEMS)
             add(SettingsPageId.HIDDEN_LIBRARY_ITEMS)
             add(SettingsPageId.BLOCKED_ARTISTS)
@@ -622,5 +628,41 @@ internal fun applyPlaybackFloatSetting(
         SettingsChangeEffect.PLAYBACK_SPEED -> playerConnection?.setPlaybackSpeed(value)
         SettingsChangeEffect.PLAYBACK_PITCH -> playerConnection?.setPlaybackPitch(value)
         else -> Unit
+    }
+}
+
+/**
+ * Sends the user to the overlay permission screen when they turn floating lyrics on without it, and turns
+ * the setting back off if they return without granting it.
+ */
+@Composable
+private fun FloatingLyricsPermissionEffect() {
+    val context = LocalContext.current
+    val permissionMessage = stringResource(Res.string.floating_lyrics_permission)
+    LaunchedEffect(Unit) {
+        snapshotFlow { SharedPreferences.shared.floatingLyricsEnabled }.drop(1).collect { enabled ->
+            if (enabled && !FloatingLyricsPermission.canDrawOverlays(context)) {
+                Toast.makeText(context, permissionMessage, Toast.LENGTH_LONG).show()
+                try {
+                    context.startActivity(FloatingLyricsPermission.requestIntent(context))
+                } catch (_: ActivityNotFoundException) {
+                }
+            }
+        }
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer =
+            LifecycleEventObserver { _, event ->
+                if (
+                    event == Lifecycle.Event.ON_RESUME &&
+                    SharedPreferences.shared.floatingLyricsEnabled &&
+                    !FloatingLyricsPermission.canDrawOverlays(context)
+                ) {
+                    SharedPreferences.shared.floatingLyricsEnabled = false
+                }
+            }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 }

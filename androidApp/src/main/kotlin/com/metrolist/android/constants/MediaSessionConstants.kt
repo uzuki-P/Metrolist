@@ -15,6 +15,8 @@ object MediaSessionConstants {
     const val ACTION_TOGGLE_REPEAT = "TOGGLE_REPEAT"
     const val ACTION_TOGGLE_SHUFFLE = "TOGGLE_SHUFFLE"
     const val ACTION_ADD_TO_TARGET_PLAYLIST = "ADD_TO_TARGET_PLAYLIST"
+    const val ACTION_TOGGLE_FLOATING_LYRICS = "TOGGLE_FLOATING_LYRICS"
+    const val ACTION_TOGGLE_FLOATING_LYRICS_LOCK = "TOGGLE_FLOATING_LYRICS_LOCK"
 
     val CommandAddToQueue = SessionCommand(ACTION_ADD_TO_QUEUE, Bundle.EMPTY)
     val CommandToggleLike = SessionCommand(ACTION_TOGGLE_LIKE, Bundle.EMPTY)
@@ -22,4 +24,6 @@ object MediaSessionConstants {
     val CommandToggleRepeat = SessionCommand(ACTION_TOGGLE_REPEAT, Bundle.EMPTY)
     val CommandToggleShuffle = SessionCommand(ACTION_TOGGLE_SHUFFLE, Bundle.EMPTY)
     val CommandAddToTargetPlaylist = SessionCommand(ACTION_ADD_TO_TARGET_PLAYLIST, Bundle.EMPTY)
+    val CommandToggleFloatingLyrics = SessionCommand(ACTION_TOGGLE_FLOATING_LYRICS, Bundle.EMPTY)
+    val CommandToggleFloatingLyricsLock = SessionCommand(ACTION_TOGGLE_FLOATING_LYRICS_LOCK, Bundle.EMPTY)
 }

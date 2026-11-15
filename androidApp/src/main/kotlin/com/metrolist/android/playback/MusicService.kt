@@ -19,6 +19,7 @@ import android.os.PowerManager
 import android.os.SystemClock
 import android.widget.Toast
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.Lifecycle
@@ -47,6 +48,8 @@ import com.metrolist.android.cast.AndroidMdnsCastDiscovery
 import com.metrolist.android.constants.MediaSessionConstants
 import com.metrolist.android.data.PlayHistoryRepository
 import com.metrolist.android.deviceconnect.AndroidDeviceConnect
+import com.metrolist.android.floatinglyrics.FloatingLyricsHost
+import com.metrolist.android.floatinglyrics.FloatingLyricsPermission
 import com.metrolist.android.listentogether.AndroidListenTogetherManager
 import com.metrolist.android.models.PersistPlayerState
 import com.metrolist.android.models.PlaybackPersistenceWriter
@@ -130,6 +133,7 @@ import com.metrolist.shared.state.PodcastPlaybackProgress
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
 import com.metrolist.shared.utils.normalizePlaybackTempo
+import com.metrolist.shared.viewmodels.PlayerViewModel
 import com.metrolist.shared.youtube.benchmark.PlaybackBenchmarkRunner
 import com.metrolist.shared.youtube.playback.PlaybackEventKind
 import com.metrolist.shared.youtube.playback.PlaybackEventLog
@@ -274,6 +278,8 @@ class MusicService :
     private val musicVideoResolver: MusicVideoResolver by inject()
     private val database: MusicDatabase by inject()
     private val widgetManager: MetrolistWidgetManager by inject()
+    private val playerViewModel: PlayerViewModel by inject()
+    private var floatingLyricsHost: FloatingLyricsHost? = null
 
     lateinit var player: AndroidPlaybackPlayer
         private set
@@ -543,6 +549,7 @@ class MusicService :
         registerVolumeMuteObserver()
         observeAndroidAutoConnection()
         setupMediaSession()
+        startFloatingLyrics()
         observePlaybackEvents()
         observeCastState()
         listeningHistory.start()
@@ -917,8 +924,14 @@ class MusicService :
         serviceScope.launch {
             (application as App).startup.await()
             val startRadioLabel = getString(SharedRes.string.sharedStartRadio)
-            combine(player.currentSong, SongLikeState.likedSongsFlow, _repeatMode, _shuffleModeEnabled) { song, _, repeatMode, shuffle ->
-                listOf(song?.id, song?.id?.let(SongLikeState::isLiked), repeatMode, shuffle)
+            combine(
+                player.currentSong,
+                SongLikeState.likedSongsFlow,
+                _repeatMode,
+                _shuffleModeEnabled,
+                snapshotFlow { Settings.shared.floatingLyricsEnabled to Settings.shared.floatingLyricsClickThrough },
+            ) { song, _, repeatMode, shuffle, floatingLyrics ->
+                listOf(song?.id, song?.id?.let(SongLikeState::isLiked), repeatMode, shuffle, floatingLyrics)
             }.distinctUntilChanged().collect {
                 mediaSession?.setMediaButtonPreferences(
                     ImmutableList.copyOf(
@@ -929,7 +942,7 @@ class MusicService :
                                 createShuffleButton(),
                                 createRadioButton(startRadioLabel),
                                 createAddToPlaylistButton(),
-                            ),
+                            ) + floatingLyricsButtons(),
                     ),
                 )
             }
@@ -2170,6 +2183,53 @@ class MusicService :
             .setEnabled(player.currentSong.value != null)
             .build()
 
+    private fun floatingLyricsButtons(): List<CommandButton> {
+        val shown = Settings.shared.floatingLyricsEnabled
+        val toggle =
+            CommandButton
+                .Builder(CommandButton.ICON_UNDEFINED)
+                .setCustomIconResId(if (shown) R.drawable.ic_notification_lyrics_off else R.drawable.ic_notification_lyrics)
+                .setDisplayName(getString(if (shown) R.string.floating_lyrics_hide else R.string.floating_lyrics_show))
+                .setSessionCommand(MediaSessionConstants.CommandToggleFloatingLyrics)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
+                .build()
+        if (!shown) return listOf(toggle)
+        val locked = Settings.shared.floatingLyricsClickThrough
+        val lock =
+            CommandButton
+                .Builder(CommandButton.ICON_UNDEFINED)
+                .setCustomIconResId(if (locked) R.drawable.ic_notification_lock_open else R.drawable.ic_notification_lock)
+                .setDisplayName(getString(if (locked) R.string.floating_lyrics_unlock else R.string.floating_lyrics_lock))
+                .setSessionCommand(MediaSessionConstants.CommandToggleFloatingLyricsLock)
+                .setSlots(CommandButton.SLOT_OVERFLOW)
+                .build()
+        return listOf(toggle, lock)
+    }
+
+    private fun startFloatingLyrics() {
+        serviceScope.launch {
+            (application as App).startup.await()
+            floatingLyricsHost = FloatingLyricsHost(this@MusicService, playerViewModel).also { it.start() }
+        }
+    }
+
+    private fun toggleFloatingLyrics() {
+        val show = !Settings.shared.floatingLyricsEnabled
+        Settings.shared.floatingLyricsEnabled = show
+        // No composition may be running to deliver the change to the overlay and notification observers.
+        Snapshot.sendApplyNotifications()
+        if (show && !FloatingLyricsPermission.canDrawOverlays(this)) {
+            // A notification action cannot open the permission screen from the background.
+            Toast.makeText(this, R.string.floating_lyrics_permission, Toast.LENGTH_LONG).show()
+        }
+        floatingLyricsHost?.recheckPermission()
+    }
+
+    private fun toggleFloatingLyricsLock() {
+        Settings.shared.floatingLyricsClickThrough = !Settings.shared.floatingLyricsClickThrough
+        Snapshot.sendApplyNotifications()
+    }
+
     internal suspend fun promoteWidgetPlayback(): Boolean {
         val session = mediaSession ?: return false
         return try {
@@ -2909,6 +2969,8 @@ class MusicService :
         if (Settings.shared.enableDiscordIntegration) {
             DiscordRpcManager.clear()
         }
+        floatingLyricsHost?.release()
+        floatingLyricsHost = null
         syncPlayback.release()
         AndroidDeviceConnect.manager.remote.detach(syncPlayback.port)
         castManager.closeImmediately()
@@ -2998,6 +3060,8 @@ class MusicService :
                     .add(MediaSessionConstants.CommandToggleStartRadio)
                     .add(MediaSessionConstants.CommandAddToQueue)
                     .add(MediaSessionConstants.CommandAddToTargetPlaylist)
+                    .add(MediaSessionConstants.CommandToggleFloatingLyrics)
+                    .add(MediaSessionConstants.CommandToggleFloatingLyricsLock)
                     .build()
             MediaArtworkProvider.allowedPackages += controller.packageName
             return MediaSession.ConnectionResult.accept(
@@ -3127,6 +3191,14 @@ class MusicService :
                         return Futures.immediateFuture(SessionResult(SessionError.ERROR_PERMISSION_DENIED))
                     }
                     media3Player?.shuffleModeEnabled = !player.isShuffleEnabled
+                }
+
+                MediaSessionConstants.ACTION_TOGGLE_FLOATING_LYRICS -> {
+                    toggleFloatingLyrics()
+                }
+
+                MediaSessionConstants.ACTION_TOGGLE_FLOATING_LYRICS_LOCK -> {
+                    toggleFloatingLyricsLock()
                 }
 
                 MediaSessionConstants.ACTION_TOGGLE_START_RADIO -> {
