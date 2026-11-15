@@ -26,6 +26,8 @@ import com.metrolist.shared.generated.resources.*
 import com.metrolist.shared.settings.LyricsTextSizeRange
 import com.metrolist.shared.settings.PlayerBackgroundStyle
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_TEXT_SCALE
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_TEXT_SCALE
 import com.metrolist.shared.ui.components.lyrics.LyricsOffsetEditor
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import org.jetbrains.compose.resources.stringResource
@@ -206,6 +208,14 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
             }
         }
         group("lyricsAdvanced", stringResource(Res.string.lyrics_settings_title)) {
+            if (SettingsPageId.FLOATING_LYRICS in host.availablePages) {
+                navigation(
+                    "floatingLyrics",
+                    stringResource(Res.string.floating_lyrics_title),
+                    SettingsPageId.FLOATING_LYRICS,
+                    description = stringResource(Res.string.floating_lyrics_description),
+                )
+            }
             if (SettingsPageId.LYRICS_SOURCES in host.availablePages) {
                 navigation(
                     "sources",
@@ -483,6 +493,55 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                         AiLyricsConnectionTestSetting(preset, provider, oauthConnected)
                     }
                 }
+            }
+        }
+    }
+
+    if (SettingsPageId.FLOATING_LYRICS in host.availablePages) {
+        page(
+            id = SettingsPageId.FLOATING_LYRICS,
+            title = stringResource(Res.string.floating_lyrics_title),
+            subtitle = stringResource(Res.string.floating_lyrics_description),
+            icon = MetrolistIcons.Outlined.Lyrics,
+            tone = SettingsTone.ROSE,
+        ) {
+            group("window", stringResource(Res.string.floating_lyrics_title)) {
+                mainSwitch(
+                    id = "floatingLyricsEnabled",
+                    title = stringResource(Res.string.floating_lyrics_enable),
+                    checked = settings.floatingLyricsEnabled,
+                ) { settings.floatingLyricsEnabled = it }
+                switch(
+                    id = "floatingLyricsClickThrough",
+                    title = stringResource(Res.string.floating_lyrics_click_through),
+                    description = stringResource(Res.string.floating_lyrics_click_through_description),
+                    checked = settings.floatingLyricsClickThrough,
+                ) { settings.floatingLyricsClickThrough = it }
+                switch(
+                    id = "floatingLyricsNextLine",
+                    title = stringResource(Res.string.floating_lyrics_next_line),
+                    checked = settings.floatingLyricsShowNextLine,
+                ) { settings.floatingLyricsShowNextLine = it }
+                slider(
+                    id = "floatingLyricsTextScale",
+                    title = stringResource(Res.string.floating_lyrics_text_size),
+                    valueLabel = "${(settings.floatingLyricsTextScale * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}",
+                    value = settings.floatingLyricsTextScale,
+                    range = FLOATING_LYRICS_MIN_TEXT_SCALE..FLOATING_LYRICS_MAX_TEXT_SCALE,
+                    steps = 13,
+                    valueFormatter = { "${(it * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}" },
+                ) { settings.floatingLyricsTextScale = it }
+                slider(
+                    id = "floatingLyricsBackground",
+                    title = stringResource(Res.string.floating_lyrics_background),
+                    valueLabel = "${(settings.floatingLyricsBackgroundOpacity * 100).roundToInt()}${stringResource(
+                        Res.string.percent_symbol,
+                    )}",
+                    value = settings.floatingLyricsBackgroundOpacity,
+                    range = 0f..1f,
+                    steps = 19,
+                    valueFormatter = { "${(it * 100).roundToInt()}${stringResource(Res.string.percent_symbol)}" },
+                ) { settings.floatingLyricsBackgroundOpacity = it }
             }
         }
     }

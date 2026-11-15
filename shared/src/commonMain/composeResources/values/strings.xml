@@ -3179,6 +3179,20 @@
     <!-- Translators: Option or section label for translation mode; retained for translation compatibility but not currently referenced by app code. -->
     <!-- Translators: Option or section label for target language in the AI lyrics translation settings. -->
     <string name="ai_target_language">Target language</string>
+    <string name="floating_lyrics_title">Floating lyrics</string>
+    <string name="floating_lyrics_description">Show the current lyric line in a small window above other apps</string>
+    <string name="floating_lyrics_enable">Show floating lyrics</string>
+    <string name="floating_lyrics_click_through">Click-through</string>
+    <string name="floating_lyrics_click_through_description">Clicks and touches pass through the window. Turn it off from the tray menu or the notification.</string>
+    <string name="floating_lyrics_next_line">Show the next line</string>
+    <string name="floating_lyrics_text_size">Text size</string>
+    <string name="floating_lyrics_background">Background opacity</string>
+    <string name="floating_lyrics_no_lyrics">No synced lyrics</string>
+    <string name="floating_lyrics_show">Show floating lyrics</string>
+    <string name="floating_lyrics_hide">Hide floating lyrics</string>
+    <string name="floating_lyrics_lock">Lock floating lyrics</string>
+    <string name="floating_lyrics_unlock">Unlock floating lyrics</string>
+    <string name="floating_lyrics_permission">Allow display over other apps to show floating lyrics</string>
     <string name="ai_skip_languages">Don't translate</string>
     <string name="ai_skip_languages_description">Leave lyrics in these languages untranslated</string>
     <string name="ai_skip_languages_requirement">Lines in a checked language stay as they are. This needs an AI provider and the automatic trigger.</string>
