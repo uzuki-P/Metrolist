@@ -95,3 +95,7 @@ HANDOFF.md
 .codeium
 .opencode
 .mcp.json
+
+# Metrolist+
+keystore.properties
+_apk/

@@ -204,7 +204,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.metrolist.music"
+        // Metrolist+ keeps its own application ID so it installs next to upstream Metrolist.
+        applicationId = "com.metrolist.music.plus"
         minSdk = 24
         targetSdk = 37
         versionCode = 154
@@ -245,12 +246,13 @@ android {
             isShrinkResources = true
             ndk.debugSymbolLevel = "FULL"
             optimization.keepRules { ignoreFrom("com.materialkolor:material-kolor-android:5.0.1") }
-            manifestPlaceholders["appLabel"] = "Metrolist"
+            manifestPlaceholders["appLabel"] = "Metrolist+"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            signingConfig = if (hasReleaseSigning) signingConfigs["release"] else null
+            // Sideloaded Metrolist+ builds fall back to the debug keystore, as the pre-v14 fork did.
+            signingConfig = if (hasReleaseSigning) signingConfigs["release"] else signingConfigs["debug"]
         }
         create("benchmark") {
             initWith(getByName("release"))
@@ -262,7 +264,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "Metrolist KMP Debug"
+            manifestPlaceholders["appLabel"] = "Metrolist+ Debug"
         }
     }
 

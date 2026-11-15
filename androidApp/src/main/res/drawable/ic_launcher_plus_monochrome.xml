@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon version of ic_launcher_plus_foreground: one color, no translucency. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <group
+        android:scaleX="0.155"
+        android:scaleY="0.155"
+        android:translateX="14.32"
+        android:translateY="13.78">
+        <group
+            android:scaleX="7.5"
+            android:scaleY="7.5"
+            android:translateX="139"
+            android:translateY="70">
+            <path
+                android:fillColor="#00000000"
+                android:strokeColor="#FFFFFFFF"
+                android:strokeWidth="5"
+                android:pathData="M9.5,15.5L3.707,21.293C3.317,21.684 3.317,22.317 3.707,22.707L9.293,28.293C9.683,28.684 10.317,28.684 10.707,28.293L16.707,22.293C16.895,22.105 17,21.851 17,21.586V4.468C17,3.578 18.074,3.132 18.705,3.759L28,13" />
+        </group>
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#FFFFFFFF"
+            android:strokeWidth="14"
+            android:pathData="M138,341H374A39,39 0,0 1,374 419H138A39,39 0,0 1,138 341Z" />
+        <path
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M146,368H272A12,12 0,0 1,272 392H146A12,12 0,0 1,146 368Z" />
+    </group>
+</vector>
