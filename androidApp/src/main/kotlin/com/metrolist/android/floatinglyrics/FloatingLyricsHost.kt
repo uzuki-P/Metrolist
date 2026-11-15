@@ -190,7 +190,7 @@ internal class FloatingLyricsHost(
                 setViewTreeSavedStateRegistryOwner(this@FloatingLyricsHost)
                 setViewTreeViewModelStoreOwner(this@FloatingLyricsHost)
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
-                setContent { Content() }
+                setContent { OverlayContent() }
                 setOnTouchListener { _, event -> onTouch(event) }
                 // The window wraps its content, so keep it on screen when the lyrics grow or shrink.
                 addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
@@ -222,7 +222,7 @@ internal class FloatingLyricsHost(
     }
 
     @Composable
-    private fun Content() {
+    private fun OverlayContent() {
         val state by viewModel.uiState.collectAsState()
         val playbackSpeed by viewModel.playbackSpeed.collectAsState()
         MaterialTheme(colorScheme = darkColorScheme(), typography = getAppTypography()) {
