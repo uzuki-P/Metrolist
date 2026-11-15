@@ -24,3 +24,12 @@ pre-v14 Metrolist+ at `plus-legacy`. Metrolist Desktop in turn adapts
 Metrolist.
 
 - Launcher icon from Metrolist Desktop's `assets/icon/metrolist-desktop.svg`.
+- Desktop floating lyrics window helpers in
+  `desktopApp/src/jvmMain/kotlin/com/metrolist/desktop/floating/`:
+  `FloatingLyricsWindow.kt` (from `floating/FloatingLyricsWindow.kt`),
+  `FloatingLyricsChrome.kt` (from `floating/WindowChrome.kt`),
+  `OverlayWindowSupport.kt` (from `platform/OverlayWindowSupport.kt`),
+  `LinuxOverlayWindowSupport.kt` (from `platform/linux/LinuxOverlayWindowSupport.kt`,
+  `LinuxClickThrough.kt` and the skip-taskbar part of `LinuxWindowMover.kt`) and
+  `WindowsOverlayWindowSupport.kt` (from
+  `platform/windows/WindowsOverlayWindowSupport.kt`).

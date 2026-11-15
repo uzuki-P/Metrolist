@@ -88,6 +88,7 @@ import com.metrolist.desktop.backup.DesktopBackupRestoreManager
 import com.metrolist.desktop.crash.DesktopCrashRecovery
 import com.metrolist.desktop.deviceconnect.DesktopDeviceConnect
 import com.metrolist.desktop.di.composeStateModule
+import com.metrolist.desktop.floating.FloatingLyricsWindow
 import com.metrolist.desktop.input.DesktopShortcutLayer
 import com.metrolist.desktop.input.desktopScrollConfig
 import com.metrolist.desktop.state.DesktopLocaleManager
@@ -1530,6 +1531,8 @@ private fun runDesktopApp(args: Array<String>) {
             if (integrationsReady) MiniplayerWindow()
         }
 
+        // Outside the main window, so it keeps fetching and showing lyrics while that is in the tray.
+        if (integrationsReady) FloatingLyricsWindow()
         if (integrationsReady) ComposeTrayManager.TrayIcon()
     }
 }

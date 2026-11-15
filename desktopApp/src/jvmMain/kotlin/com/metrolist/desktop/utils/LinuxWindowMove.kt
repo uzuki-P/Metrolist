@@ -18,11 +18,19 @@ internal interface WindowMoveX11 : X11 {
 }
 
 internal object LinuxWindowMove {
+    const val RESIZE_LEFT = 3
+    const val RESIZE_RIGHT = 4
+    const val MOVE = 8
+
     private val x11 by lazy { Native.load("X11", WindowMoveX11::class.java) }
 
     fun isX11Toolkit(): Boolean = Toolkit.getDefaultToolkit().javaClass.name == "sun.awt.X11.XToolkit"
 
-    fun start(window: Window): Boolean {
+    /** [action] is an EWMH `_NET_WM_MOVERESIZE` direction: 0-7 resize from an edge or corner, 8 moves. */
+    fun start(
+        window: Window,
+        action: Int = MOVE,
+    ): Boolean {
         if (!isX11Toolkit()) return false
         val toolkit = Toolkit.getDefaultToolkit().javaClass
 
@@ -43,7 +51,7 @@ internal object LinuxWindowMove {
                 X11.Display().apply {
                     pointer = Pointer(toolkit.getMethod("getDisplay").invoke(null) as Long)
                 }
-            return startX11WindowMove(x11, display, windowId)
+            return startX11WindowMove(x11, display, windowId, action)
         } finally {
             unlock.invoke(null)
         }
@@ -54,6 +62,7 @@ internal fun startX11WindowMove(
     x11: WindowMoveX11,
     display: X11.Display,
     window: X11.Window,
+    action: Int = LinuxWindowMove.MOVE,
 ): Boolean {
     val atom = x11.XInternAtom(display, "_NET_WM_MOVERESIZE", true) ?: return false
     val root = x11.XDefaultRootWindow(display)
@@ -87,7 +96,7 @@ internal fun startX11WindowMove(
                 arrayOf(
                     NativeLong(rootX.value.toLong()),
                     NativeLong(rootY.value.toLong()),
-                    NativeLong(8), // _NET_WM_MOVERESIZE_MOVE
+                    NativeLong(action.toLong()),
                     NativeLong(1), // Left mouse button
                     NativeLong(1), // Normal application
                 )

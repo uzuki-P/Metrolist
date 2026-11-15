@@ -140,6 +140,7 @@ fun SettingsOverlay(colorScheme: ColorScheme) {
                 SettingsPageId.LYRICS_ROMANIZATION,
                 SettingsPageId.PLAYER_ARTWORK,
                 SettingsPageId.PLAYER_STYLE,
+                SettingsPageId.FLOATING_LYRICS,
             )
     val systemDefaultLabel = stringResource(Res.string.app_language_system)
     val systemLocale = Locale.getDefault()

@@ -10,11 +10,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.WindowState
+import com.metrolist.desktop.floating.OverlayWindowSupport
 import com.metrolist.desktop.state.app.DesktopNavigation
 import com.metrolist.desktop.state.app.UiState
 import com.metrolist.desktop.state.playback.ListenTogetherState
 import com.metrolist.desktop.state.playback.PlayerState
 import com.metrolist.shared.generated.resources.Res
+import com.metrolist.shared.generated.resources.floating_lyrics_hide
+import com.metrolist.shared.generated.resources.floating_lyrics_lock
+import com.metrolist.shared.generated.resources.floating_lyrics_show
+import com.metrolist.shared.generated.resources.floating_lyrics_unlock
 import com.metrolist.shared.generated.resources.tray_by
 import com.metrolist.shared.generated.resources.tray_hide_window
 import com.metrolist.shared.generated.resources.tray_next_track
@@ -176,6 +181,12 @@ object ComposeTrayManager {
         val strShowWindow = stringResource(Res.string.tray_show_window)
         val strShowMiniplayer = stringResource(Res.string.tray_show_miniplayer)
         val strSettings = stringResource(Res.string.tray_settings)
+        val strShowFloatingLyrics = stringResource(Res.string.floating_lyrics_show)
+        val strHideFloatingLyrics = stringResource(Res.string.floating_lyrics_hide)
+        val strLockFloatingLyrics = stringResource(Res.string.floating_lyrics_lock)
+        val strUnlockFloatingLyrics = stringResource(Res.string.floating_lyrics_unlock)
+        val floatingLyricsEnabled = Settings.shared.floatingLyricsEnabled
+        val floatingLyricsClickThrough = Settings.shared.floatingLyricsClickThrough
         val strQuitMetrolist = stringResource(Res.string.tray_quit_metrolist)
         val strTrayByTemplate = stringResource(Res.string.tray_by)
 
@@ -247,6 +258,18 @@ object ComposeTrayManager {
 
                 Item(label = strShowMiniplayer) {
                     PlayerState.showMiniplayer = true
+                }
+
+                Item(label = if (floatingLyricsEnabled) strHideFloatingLyrics else strShowFloatingLyrics) {
+                    Settings.shared.floatingLyricsEnabled = !floatingLyricsEnabled
+                }
+
+                // Click-through blocks every pointer path back into the window, so the tray is
+                // the way to unlock it.
+                if (floatingLyricsEnabled && OverlayWindowSupport.current.supportsClickThrough) {
+                    Item(label = if (floatingLyricsClickThrough) strUnlockFloatingLyrics else strLockFloatingLyrics) {
+                        Settings.shared.floatingLyricsClickThrough = !floatingLyricsClickThrough
+                    }
                 }
 
                 Divider()
