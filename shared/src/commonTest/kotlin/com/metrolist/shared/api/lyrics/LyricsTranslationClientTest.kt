@@ -755,6 +755,62 @@ class LyricsTranslationClientTest {
             assertEquals(2, requests)
         }
 
+    @Test
+    fun skippedLanguagesCountAsTargetLanguageForDetectionAndTranslation() =
+        runBlocking {
+            val prompts = mutableListOf<String>()
+            HttpClient(
+                MockEngine { request ->
+                    val body = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+                    val prompt =
+                        body
+                            .getValue("messages")
+                            .jsonArray
+                            .last()
+                            .jsonObject
+                            .getValue("content")
+                            .jsonPrimitive.content
+                    prompts += prompt
+                    val payload =
+                        if (prompt.startsWith("Inspect every passage")) {
+                            "{\"lines\":[\"\",\"君\"]}"
+                        } else {
+                            "{\"lines\":[\"Aku\",\"Kimi\"]}"
+                        }
+                    respond("{\"choices\":[{\"message\":{\"content\":${JsonPrimitive(payload)}}}]}", HttpStatusCode.OK, JSON_HEADERS)
+                },
+            ).use { client ->
+                val translationClient = LyricsTranslationClient(client)
+                val decisions =
+                    translationClient
+                        .shouldTranslateLyricsLines(
+                            lines = listOf("Aku cinta kamu", "君を忘れない"),
+                            provider = "OpenAI",
+                            targetLanguage = "en",
+                            apiKey = "test-key",
+                            baseUrl = "https://example.test/chat/completions",
+                            model = "test-model",
+                            keptLanguages = listOf("id"),
+                        ).getOrThrow()
+                assertEquals(listOf(false, true), decisions)
+                assertTrue("a language other than English or Indonesian" in prompts.last(), prompts.last())
+
+                translationClient
+                    .translateLyricsLines(
+                        lines = listOf("Aku cinta kamu", "君を忘れない"),
+                        provider = "OpenAI",
+                        targetLanguage = "en",
+                        mode = "Literal",
+                        apiKey = "test-key",
+                        baseUrl = "https://example.test/chat/completions",
+                        model = "test-model",
+                        preserveTargetLanguage = true,
+                        keptLanguages = listOf("id"),
+                    ).getOrThrow()
+                assertTrue("Leave text already in English or Indonesian unchanged" in prompts.last(), prompts.last())
+            }
+        }
+
     private suspend fun detectLyrics(
         lines: List<String>,
         response: (String) -> String,

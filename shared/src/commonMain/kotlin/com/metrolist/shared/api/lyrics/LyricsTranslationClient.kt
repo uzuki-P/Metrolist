@@ -109,6 +109,7 @@ class LyricsTranslationClient(
         deepLFormality: String = "default",
         wordsPerLine: List<List<String>?>? = null,
         preserveTargetLanguage: Boolean = false,
+        keptLanguages: List<String> = emptyList(),
     ): Result<LyricsAiResult> {
         val nonNullLines = lines.map { it.trimEnd() }
         if (nonNullLines.isEmpty() || nonNullLines.all { it.isBlank() }) {
@@ -145,6 +146,7 @@ class LyricsTranslationClient(
                     systemPrompt = systemPrompt,
                     wordsPerLine = wordsPerLine,
                     preserveTargetLanguage = preserveTargetLanguage,
+                    keptLanguages = languageNames(targetLanguage, keptLanguages),
                 )
             }
         }
@@ -158,6 +160,7 @@ class LyricsTranslationClient(
         baseUrl: String,
         model: String,
         systemPrompt: String = "",
+        keptLanguages: List<String> = emptyList(),
     ): Result<Boolean> {
         if (provider.equals("DeepL", ignoreCase = true) ||
             provider.equals("DeepL (keyless)", ignoreCase = true) ||
@@ -168,7 +171,7 @@ class LyricsTranslationClient(
         val nonBlank = lines.map { it.trim() }.filter { it.isNotBlank() }
         if (nonBlank.isEmpty()) return Result.success(false)
         return try {
-            val target = languageName(targetLanguage)
+            val target = languageNames(targetLanguage, keptLanguages)
             val schema = detectionSchema()
             for (batch in detectionBatches(nonBlank)) {
                 currentCoroutineContext().ensureActive()
@@ -214,6 +217,7 @@ class LyricsTranslationClient(
         baseUrl: String,
         model: String,
         systemPrompt: String = "",
+        keptLanguages: List<String> = emptyList(),
     ): Result<List<Boolean>> {
         if (provider.equals("DeepL", ignoreCase = true) ||
             provider.equals("DeepL (keyless)", ignoreCase = true) ||
@@ -234,7 +238,7 @@ class LyricsTranslationClient(
                         systemPrompt = systemPrompt.ifBlank { "You are a fast language detector. Return only the requested JSON object." },
                         userPrompt =
                             "Inspect every passage within each lyric independently. " +
-                                foreignPassageInstructions(languageName(targetLanguage)) +
+                                foreignPassageInstructions(languageNames(targetLanguage, keptLanguages)) +
                                 " In lines, return one string per input in the same order: copy one short matching passage verbatim, " +
                                 "or use an empty string if none exists. Do not let another lyric's language affect the decision.\n\n{\"lines\":$input}",
                         schemaName = "lyrics_line_language_detection",
@@ -278,6 +282,7 @@ class LyricsTranslationClient(
         wordsPerLine: List<List<String>?>? = null,
         maxTokens: Int? = null,
         preserveTargetLanguage: Boolean = false,
+        keptLanguages: String = targetLanguage,
         onModelSelected: (String) -> Unit = {},
     ): Result<LyricsAiResult> =
         try {
@@ -305,7 +310,7 @@ class LyricsTranslationClient(
                 }
             val languageInstruction =
                 if (preserveTargetLanguage) {
-                    " Leave text already in $targetLanguage unchanged. Within mixed-language lines, translate only the foreign passages."
+                    " Leave text already in $keptLanguages unchanged. Within mixed-language lines, translate only the foreign passages."
                 } else {
                     ""
                 }
@@ -1658,6 +1663,11 @@ class LyricsTranslationClient(
         const val AI_REQUEST_TIMEOUT_MS = 120_000L
         const val MAX_DETECTION_BATCH_CHARS = 8_000
     }
+
+    private fun languageNames(
+        targetLanguage: String,
+        keptLanguages: List<String>,
+    ): String = (listOf(targetLanguage) + keptLanguages).map(::languageName).distinct().joinToString(" or ")
 
     private fun languageName(code: String): String =
         when (code.lowercase()) {

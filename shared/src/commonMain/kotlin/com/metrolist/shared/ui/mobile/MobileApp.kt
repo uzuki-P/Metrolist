@@ -1369,6 +1369,7 @@ fun MobileApp(
                                                         SettingsPageId.MINI_PLAYER_STYLE,
                                                         SettingsPageId.LYRICS_SOURCES,
                                                         SettingsPageId.LYRICS_AI_TRANSLATION,
+                                                        SettingsPageId.LYRICS_AI_SKIP_LANGUAGES,
                                                         SettingsPageId.LYRICS_ROMANIZATION,
                                                         SettingsPageId.HIDDEN_HOME_ITEMS,
                                                         SettingsPageId.HIDDEN_LIBRARY_ITEMS,

@@ -1271,6 +1271,7 @@ class LyricsRepository(
             )
             onTranslationFailure(failure)
         }
+        val keptLanguages = skippedTranslationLanguages(targetLanguage)
         val detectPerLine = translationStyle != "Romanized"
         val combineDetection = detectPerLine && provider == "OpenRouter" && Settings.shared.lyricsAiModel.endsWith(":free")
         val needed =
@@ -1283,6 +1284,7 @@ class LyricsRepository(
                     retryLyricsTranslation {
                         lyricsTranslationClient
                             .shouldTranslateLyricsLines(
+                                keptLanguages = keptLanguages,
                                 lines = sourceLines,
                                 provider = provider,
                                 targetLanguage = targetLanguage,
@@ -1303,6 +1305,7 @@ class LyricsRepository(
                         retryLyricsTranslation {
                             lyricsTranslationClient
                                 .shouldTranslateLyrics(
+                                    keptLanguages = keptLanguages,
                                     lines = sourceLines,
                                     provider = provider,
                                     targetLanguage = targetLanguage,
@@ -1342,6 +1345,7 @@ class LyricsRepository(
                         deepLFormality = Settings.shared.lyricsDeepLFormality,
                         wordsPerLine = selected.map { sourceWordsPerLine[it] },
                         preserveTargetLanguage = combineDetection && !skipLanguageDetection,
+                        keptLanguages = keptLanguages,
                     )
             }.getOrElse { error ->
                 if (error is CancellationException) throw error
@@ -1428,6 +1432,14 @@ class LyricsRepository(
             configKey.replaceFirst("$AI_TRANSLATION_CACHE_VERSION|", "$version|")
         }
 
+    private fun skippedTranslationLanguages(targetLanguage: String): List<String> =
+        Settings.shared.lyricsAiSkipLanguages
+            .split(',')
+            .map(String::trim)
+            .filter { it.isNotBlank() && !it.equals(targetLanguage, ignoreCase = true) }
+            .distinct()
+            .sorted()
+
     internal fun buildTranslationConfigKey(): String =
         listOf(
             AI_TRANSLATION_CACHE_VERSION,
@@ -1439,14 +1451,18 @@ class LyricsRepository(
                 .hashCode()
                 .toString(),
             Settings.shared.lyricsDeepLFormality,
-        ).joinToString("|").let { key ->
-            if (Settings.shared.lyricsAiProvider.startsWith("DeepL", ignoreCase = true)) {
-                val country = Settings.shared.contentCountry.takeUnless { it == GlobalYouTube.SYSTEM } ?: systemCountryCode()
-                "$key|$country"
-            } else {
-                key
+        ).joinToString("|")
+            .let { key ->
+                val skipped = skippedTranslationLanguages(resolveTargetLanguage(Settings.shared.lyricsAiTargetLanguage))
+                if (skipped.isEmpty()) key else "$key|skip=${skipped.joinToString(",")}"
+            }.let { key ->
+                if (Settings.shared.lyricsAiProvider.startsWith("DeepL", ignoreCase = true)) {
+                    val country = Settings.shared.contentCountry.takeUnless { it == GlobalYouTube.SYSTEM } ?: systemCountryCode()
+                    "$key|$country"
+                } else {
+                    key
+                }
             }
-        }
 
     private fun isAlignedCachedResult(
         result: LyricsAiResult,

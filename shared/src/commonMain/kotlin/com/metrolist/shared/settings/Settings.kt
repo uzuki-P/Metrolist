@@ -511,6 +511,7 @@ class Settings(
 
     var lyricsAiDetectorModel by preference("")
     var lyricsAiTargetLanguage by preference("device")
+    var lyricsAiSkipLanguages by preference("")
     var lyricsAiTranslationMode by preference("Literal")
     var lyricsAiActivationMode by preference("Automatic")
     var lyricsAiSystemPrompt by preference("")

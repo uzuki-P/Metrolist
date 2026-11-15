@@ -471,6 +471,29 @@ class LyricsRepositoryTest {
         }
 
     @Test
+    fun skippedLanguagesChangeTheTranslationCacheOnlyWhenSet() {
+        Settings.replaceSharedForTest(Settings(MapSettings()))
+        try {
+            Settings.shared.lyricsAiProvider = "OpenAI"
+            Settings.shared.lyricsAiTargetLanguage = "en"
+            HttpClient(MockEngine { error("No network expected") }).use { client ->
+                val repository = LyricsRepository(FakeLyricsFetcher(emptyMap()), LyricsTranslationClient(client))
+                val none = repository.buildTranslationConfigKey()
+                assertFalse("skip=" in none)
+                Settings.shared.lyricsAiSkipLanguages = "en"
+                assertEquals(none, repository.buildTranslationConfigKey())
+                Settings.shared.lyricsAiSkipLanguages = "ja,id"
+                val skipping = repository.buildTranslationConfigKey()
+                assertTrue(skipping.endsWith("|skip=id,ja"), skipping)
+                Settings.shared.lyricsAiSkipLanguages = "id,ja"
+                assertEquals(skipping, repository.buildTranslationConfigKey())
+            }
+        } finally {
+            Settings.replaceSharedForTest(null)
+        }
+    }
+
+    @Test
     fun deepLCacheChangesWhenTheContentRegionChanges() {
         Settings.replaceSharedForTest(Settings(MapSettings()))
         try {

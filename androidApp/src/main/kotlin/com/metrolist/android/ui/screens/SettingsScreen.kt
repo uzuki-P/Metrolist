@@ -333,6 +333,7 @@ fun SettingsScreen(
             add(SettingsPageId.MINI_PLAYER_STYLE)
             add(SettingsPageId.LYRICS_SOURCES)
             add(SettingsPageId.LYRICS_AI_TRANSLATION)
+            add(SettingsPageId.LYRICS_AI_SKIP_LANGUAGES)
             add(SettingsPageId.LYRICS_ROMANIZATION)
             add(SettingsPageId.HIDDEN_HOME_ITEMS)
             add(SettingsPageId.HIDDEN_LIBRARY_ITEMS)

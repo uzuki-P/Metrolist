@@ -136,6 +136,7 @@ fun SettingsOverlay(colorScheme: ColorScheme) {
                 SettingsPageId.BLOCKED_ARTISTS,
                 SettingsPageId.LYRICS_SOURCES,
                 SettingsPageId.LYRICS_AI_TRANSLATION,
+                SettingsPageId.LYRICS_AI_SKIP_LANGUAGES,
                 SettingsPageId.LYRICS_ROMANIZATION,
                 SettingsPageId.PLAYER_ARTWORK,
                 SettingsPageId.PLAYER_STYLE,

@@ -339,6 +339,18 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                         choices = targetLanguageChoices,
                         selectedChoiceId = settings.lyricsAiTargetLanguage,
                     ) { settings.lyricsAiTargetLanguage = it }
+                    if (SettingsPageId.LYRICS_AI_SKIP_LANGUAGES in host.availablePages) {
+                        navigation(
+                            id = "skipLanguages",
+                            title = stringResource(Res.string.ai_skip_languages),
+                            destination = SettingsPageId.LYRICS_AI_SKIP_LANGUAGES,
+                            description = stringResource(Res.string.ai_skip_languages_description),
+                            valueLabel =
+                                skippedLanguageChoices(targetLanguageChoices, settings.lyricsAiSkipLanguages)
+                                    .joinToString { it.label }
+                                    .ifEmpty { stringResource(Res.string.none) },
+                        )
+                    }
                 }
             }
             group("provider", stringResource(Res.string.ai_provider)) {
@@ -475,6 +487,43 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
         }
     }
 
+    val skipLanguageChoices =
+        host.hostChoices[SettingsHostChoice.LYRICS_TARGET_LANGUAGE].orEmpty().filterNot { it.id == "device" }
+    if (SettingsPageId.LYRICS_AI_SKIP_LANGUAGES in host.availablePages && skipLanguageChoices.isNotEmpty()) {
+        val skipped =
+            settings.lyricsAiSkipLanguages
+                .split(',')
+                .filter(String::isNotBlank)
+                .toSet()
+        page(
+            id = SettingsPageId.LYRICS_AI_SKIP_LANGUAGES,
+            title = stringResource(Res.string.ai_skip_languages),
+            subtitle = stringResource(Res.string.ai_skip_languages_description),
+            icon = MetrolistIcons.Outlined.Translate,
+            tone = SettingsTone.ROSE,
+        ) {
+            group(
+                id = "languages",
+                title = stringResource(Res.string.languages),
+                description = stringResource(Res.string.ai_skip_languages_requirement),
+            ) {
+                skipLanguageChoices.forEach { choice ->
+                    switch(
+                        id = "skipLanguage:${choice.id}",
+                        title = choice.label,
+                        checked = choice.id in skipped,
+                    ) { enabled ->
+                        settings.lyricsAiSkipLanguages =
+                            skipLanguageChoices
+                                .map { it.id }
+                                .filter { if (it == choice.id) enabled else it in skipped }
+                                .joinToString(",")
+                    }
+                }
+            }
+        }
+    }
+
     if (SettingsPageId.LYRICS_ROMANIZATION in host.availablePages) {
         val romanizationLanguages = parseRomanizationLanguages(settings.lyricsRomanizeLanguages)
         page(
@@ -532,4 +581,12 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
             }
         }
     }
+}
+
+private fun skippedLanguageChoices(
+    choices: List<SettingsChoice>,
+    value: String,
+): List<SettingsChoice> {
+    val skipped = value.split(',').filter(String::isNotBlank).toSet()
+    return choices.filter { it.id != "device" && it.id in skipped }
 }
