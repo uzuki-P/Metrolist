@@ -36,3 +36,13 @@ build-apk: stage-apk
     # The newest staged copy of this version is the one stage-apk just wrote.
     staged="$(ls -t _apk/{{app_id}}-{{app_version}}_*.apk | head -1)"
     ~/docker/files/bin/share "$(pwd)/$staged"
+
+# Wait for the android-apk CI build of the pushed HEAD and fetch it into _apk/.
+[linux]
+ci-apk:
+    bash scripts/ci-apk
+
+# Wait for the windows-exe CI build of the pushed HEAD and fetch it into _apk/.
+[linux]
+ci-exe:
+    bash scripts/ci-exe

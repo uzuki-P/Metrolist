@@ -16,7 +16,8 @@ case "$source_file" in
     *.apk) extension=apk ;;
     *.AppImage) extension=AppImage ;;
     *.exe) extension=exe ;;
-    *) echo "Expected an APK, AppImage, or EXE" >&2; exit 2 ;;
+    *.zip) extension=zip ;;
+    *) echo "Expected an APK, AppImage, EXE, or ZIP" >&2; exit 2 ;;
 esac
 
 stamp=$(LC_ALL=C date +%d-%b_%H-%M | tr '[:upper:]' '[:lower:]')
