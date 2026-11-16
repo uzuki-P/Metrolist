@@ -1174,6 +1174,10 @@ fun MetrolistApp(
                             }
 
                             is IncomingDestination.SettingsPage -> {
+                                // Keep one settings route: opening a page again replaces the earlier one.
+                                navigator.state.backStacks.values.forEach { stack ->
+                                    stack.removeAll { it is Screen.SettingsPage || it == Screen.Settings }
+                                }
                                 navigator.navigate(Screen.SettingsPage(destination.page))
                             }
 
