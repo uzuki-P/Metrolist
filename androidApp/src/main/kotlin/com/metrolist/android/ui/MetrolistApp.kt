@@ -322,10 +322,12 @@ import com.metrolist.shared.ui.haptics.HapticEvent
 import com.metrolist.shared.ui.haptics.rememberMetrolistHaptics
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.listentogether.ListenTogetherGlobalEvents
+import com.metrolist.shared.ui.menu.ContentUndoHintsSnackbar
 import com.metrolist.shared.ui.menu.HiddenHomeItemsSnackbar
 import com.metrolist.shared.ui.menu.LocalContextMenuAnchor
 import com.metrolist.shared.ui.menu.contextMenuAnchor
 import com.metrolist.shared.ui.menu.rememberCursorContextMenuState
+import com.metrolist.shared.ui.menu.settingsPage
 import com.metrolist.shared.ui.mobile.rememberSongsPlaylistAdder
 import com.metrolist.shared.ui.navigation.AdaptiveFormFactor
 import com.metrolist.shared.ui.navigation.AdaptiveWidthBreakpoint
@@ -1043,6 +1045,12 @@ fun MetrolistApp(
                             expandedBound = maxHeight,
                             initialAnchor = DISMISSED_ANCHOR,
                         )
+                    ContentUndoHintsSnackbar(snackbarHostState) { page ->
+                        coroutineScope.launch {
+                            if (hasMedia) playerBottomSheetState.collapseSoft()
+                            navigator.navigate(page.settingsPage?.let { Screen.SettingsPage(it) } ?: Screen.ListenTogetherBlockedUsers)
+                        }
+                    }
                     val calculateFloatingActionsBottomInset by rememberUpdatedState {
                         if (shouldShowMiniPlayer) {
                             (miniPlayerContentInset() - (miniPlayerCollapsedBound - playerBottomSheetState.value).coerceAtLeast(0.dp))
@@ -1178,7 +1186,10 @@ fun MetrolistApp(
                                 navigator.state.backStacks.values.forEach { stack ->
                                     stack.removeAll { it is Screen.SettingsPage || it == Screen.Settings }
                                 }
-                                navigator.navigate(Screen.SettingsPage(destination.page))
+                                navigator.navigate(
+                                    SettingsPageId.entries.firstOrNull { it.name == destination.page }
+                                        ?.let { Screen.SettingsPage(it) } ?: Screen.Settings,
+                                )
                             }
 
                             IncomingDestination.Login -> {
@@ -2731,10 +2742,15 @@ fun getEntryProvider(
 
         entry<Screen.SettingsPage>(metadata = navTabMetadata) { route ->
             SettingsScreen(
-                onNavigateBack = { navigator.goBack() },
+                initialPage = route.page,
+                onNavigateBack = {
+                    val target = resolveAndPersistStartupScreen()
+                    navigator.state.startRoute = target
+                    navigator.goBack()
+                    if (!navigator.state.topLevelRoute.isVisibleNavigationScreen()) navigator.navigate(target)
+                },
                 onNavigateToDownloads = { navigator.navigate(Screen.AutoPlaylist("downloaded")) },
-                onNavigateToArtist = { artistId -> navigator.navigate(Screen.Artist(artistId)) },
-                initialPage = SettingsPageId.entries.firstOrNull { it.name == route.page },
+                onNavigateToArtist = { navigator.navigate(Screen.Artist(it)) },
             )
         }
 

@@ -211,7 +211,9 @@ import com.metrolist.shared.ui.components.rememberBottomSheetState
 import com.metrolist.shared.ui.design.expressive.components.ExpressiveMiniPlayerHeight
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import com.metrolist.shared.ui.listentogether.ListenTogetherGlobalEvents
+import com.metrolist.shared.ui.menu.ContentUndoHintsSnackbar
 import com.metrolist.shared.ui.menu.HiddenHomeItemsSnackbar
+import com.metrolist.shared.ui.menu.settingsPage
 import com.metrolist.shared.ui.navigation.AdaptiveFormFactor
 import com.metrolist.shared.ui.navigation.AdaptiveNavigationItem
 import com.metrolist.shared.ui.navigation.AdaptiveNavigationScaffold
@@ -564,6 +566,13 @@ fun MobileApp(
         cancelVideoLookup()
         containers.pendingPopup = null
         if (routeStack.lastOrNull()?.route != route) routeStack += MobileRouteEntry(route)
+    }
+
+    ContentUndoHintsSnackbar(snackbarHostState) { page ->
+        open(
+            page.settingsPage?.let { MobileRoute.Settings(initialPage = it) }
+                ?: MobileRoute.ListenTogether(initialBlockedUsers = true),
+        )
     }
 
     fun dismissKeyboard() {
@@ -1056,7 +1065,7 @@ fun MobileApp(
                                                 },
                                                 onItemLongClick = { menuItem = it to null },
                                                 onShuffleSongs = { songs ->
-                                                    songs.firstOrNull()?.let { playbackController.play(it, songs) }
+                                                    playbackController.shuffleQueue(songs)
                                                 },
                                                 onPlaySongs = { songs ->
                                                     songs.firstOrNull()?.let { playbackController.play(it, songs) }
@@ -1124,10 +1133,8 @@ fun MobileApp(
                                         ) {
                                             FloatingActionButton(
                                                 onClick = {
-                                                    val songs = homeState.loadedHomeSongs().filter(isHomeItemEnabled).shuffled()
-                                                    if (songs.isNotEmpty()) {
-                                                        playbackController.play(songs.first(), songs)
-                                                    }
+                                                    val songs = homeState.loadedHomeSongs().filter(isHomeItemEnabled)
+                                                    playbackController.shuffleQueue(songs)
                                                 },
                                                 shape = RoundedCornerShape(16.dp),
                                             ) {
@@ -1285,6 +1292,7 @@ fun MobileApp(
                                 MobileListenTogetherScreen(
                                     manager = listenTogetherManager,
                                     initialRoomCode = route.initialRoomCode,
+                                    initialBlockedUsers = route.initialBlockedUsers,
                                     onBack = ::back,
                                     onCopyText = { _, text -> scope.launch { clipboard.setText(text) } },
                                     onShareText = playerServices::shareText,
@@ -1374,6 +1382,7 @@ fun MobileApp(
                                                         SettingsPageId.HIDDEN_HOME_ITEMS,
                                                         SettingsPageId.HIDDEN_LIBRARY_ITEMS,
                                                         SettingsPageId.BLOCKED_ARTISTS,
+                                                        SettingsPageId.BLOCKED_SONGS,
                                                         SettingsPageId.STORAGE,
                                                         SettingsPageId.BACKUP_RESTORE,
                                                         SettingsPageId.ABOUT,
@@ -1677,7 +1686,8 @@ fun MobileApp(
                             is MobileRoute.Artist -> {
                                 val detail = remember(detailStates, entry) { detailStates.entry(checkNotNull(entry)) }
                                 MobileArtistScreen(
-                                    loader = remember(detail) { detail.artist(route.id) },
+                                    loader = remember(detail) { detail.artist(route.id, database) },
+                                    database = database,
                                     subscription = detail.subscription,
                                     onError = onSwipeFeedback,
                                     onAbout = { artist, titles -> open(MobileRoute.AboutArtist(artist, titles)) },

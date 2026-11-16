@@ -3,6 +3,7 @@ package com.metrolist.shared.ui.navigation
 import androidx.navigation3.runtime.NavKey
 import com.metrolist.shared.model.ArtistItem
 import com.metrolist.shared.settings.NavigationId
+import com.metrolist.shared.ui.settings.SettingsPageId
 import com.metrolist.shared.ui.statistics.StatisticsDateRange
 import com.metrolist.shared.ui.statistics.StatisticsPeriodMode
 import kotlinx.serialization.Serializable
@@ -32,10 +33,9 @@ sealed class Screen : NavKey {
     @Serializable
     data object Settings : Screen()
 
-    /** Settings opened on one page; [page] is a [com.metrolist.shared.ui.settings.SettingsPageId] name. */
     @Serializable
     data class SettingsPage(
-        val page: String,
+        val page: SettingsPageId,
     ) : Screen()
 
     @Serializable

@@ -247,7 +247,11 @@ In playlist reorder mode, dragging the handle moves a song immediately; holding 
 
 Playlist sort and direction are shared across ordinary local and remote playlists (authored order, ascending by default). Liked songs (newest first), downloaded and cached collections have their own saved sorting. Re-liking moves a song to the top of Date Added. Remote refreshes update like recency while preserving likes made during the refresh. Local Date Added uses the membership row ID as its insertion sequence; position updates must preserve it.
 
-Signed-out startup recovers Room likes into the settings catalog once, including partial v14 catalogs. Recovery keeps the existing order and recency, appends missing rows newest first, and leaves Room liked dates unchanged. Pending v14 unlikes and dislikes exclude stale Room rows. Database restores use the same recovery unless the backup already contains its version marker. Account-owned catalogs keep their existing sync behavior.
+Startup recovers Room likes into the settings catalog once, including partial v14 catalogs and signed-in upgrades whose like catalog has not been activated in v14. Recovery keeps the existing order and recency, appends missing rows newest first, and leaves Room liked dates unchanged. Pending v14 unlikes and dislikes exclude stale Room rows. Recovery sends no votes to YouTube; a complete remote refresh remains authoritative. Activated account catalogs and restored v14 account catalogs stay unchanged because acknowledged unlikes no longer have pending votes. Pending credentials defer recovery. Completed signed-out recovery does not run again when the recovery version changes.
+
+Account Library sync reads membership lists and grids, excluding recommendation carousels and release cards with their cursors. General browse pages keep those shelves. Previously tracked remote rows lose Library membership after two complete scans confirm their absence; partial scans do not confirm removals. This keeps song metadata, downloads and history. Untracked legacy Library rows stay because the database has no record of whether they came from a save or a recommendation.
+
+Albums, saved playlists and artist subscriptions stay in Room across the v14 upgrade and backup restore. Signed-out Library reads album bookmarks, album library membership and albums of saved tracks directly. Reading these albums leaves their liked state unchanged. A stale album liked date alone does not restore a like or library entry. Signed-in Library keeps its bookmark-based album selection.
 
 Android playlist removals publish the remaining occurrences before refreshing remote contents. Queued removals revalidate membership under the mutation lock so a deleted row cannot resend its old item ID.
 
@@ -277,6 +281,8 @@ The shared playback log keeps the latest 500 events in a ring buffer. Recording 
 
 Android, desktop and iOS use the shared settings registry. The settings shell owns navigation for registered pages, including platform-rendered ones, which reuse its title and Back action. At 840 dp and wider, category selection and search replace the detail pane, and nested pages show Back inside it. Search and reopening restore a page's registered parent path. Hosts mark external actions explicitly. Only a visible collapsing toolbar attaches its own nested-scroll connection. Custom pages register localized action labels in `SettingsPageRegistration.searchTerms` so search can find them.
 
+Search highlights pair `primaryContainer` with `onPrimaryContainer` for row text and icons. Foreground colors animate with the highlight background and retain disabled opacity.
+
 The theme colour picker appears only while Material You is off. With Material You on, artwork colours apply when enabled, then wallpaper colours on Android 12+, otherwise the default seed. Sliders placed directly in a card have a button that restores the default.
 
 ## Lyrics
@@ -287,6 +293,8 @@ Automatic lookup uses the first usable source in the configured provider order, 
 
 Automatic searches wait for Lyprio within its 50-second timeout before trying lower providers. If a completed Lyprio search returns nothing, it retries once with the picker's full provider set within the same budget. Errors and cancellation are not cached as misses. The final selection is cached after the search completes, including refetches. Video-specific sources used for retiming also follow provider priority.
 
+TTML imports read inline translations and metadata translations keyed to lyric lines. They use the saved translation target or system language and preserve vocal timing. Bundled translations appear only when their language and mode match the selection. Successful AI output takes priority over bundled text; missing output keeps matching bundled translations or the source lyrics.
+
 Lines that share one start and have no word timing count as unsynced. Lookup keeps them while checking for a synced fallback. Lyrics without line starts do not gain timing from a TTML body-duration end.
 
 Room stores confirmed misses with their lookup identity for seven days. Metadata, enabled providers, provider order, video context and explicit refresh trigger a new lookup. Provider failures are never saved as misses.
@@ -294,6 +302,8 @@ Room stores confirmed misses with their lookup identity for seven days. Metadata
 Shared lyrics HTTP reads retry a 503 twice with 500 ms and 1 s backoff, honoring Retry-After within a five-second budget.
 
 Lyprio fetches remove a leading title-and-artist header only when the whole line matches the requested metadata, separated by a spaced hyphen, en dash or em dash in either order, and another nonblank line follows. Matching ignores case and repeated whitespace.
+
+Unison song and curator attribution links also apply to Lyprio results labeled `Lyprio/UNISON` or whose MLX `source.name` is `Unison`. Other Lyprio sources do not get Unison links.
 
 Shared MLX parsing rejects Han text in Lyprio/KUGOU romanization fields, because older KRC responses labeled Chinese translations as romanization. This applies to cached lyrics too; missing romanization is then generated locally.
 
@@ -319,6 +329,14 @@ Unchanged JSON lines keep every field, including provider extensions. Editing a 
 
 The first change creates a User fork in the song lyrics row, separate from the provider and translation caches. User lyrics win over refetches and provider selection. Autosave waits 500 ms and flushes on close or backgrounding. Invalid timestamps are reported by line number and saved as a draft beside the recoverable JSON. Revert deletes the fork and draft.
 
+Database open and legacy backup conversion recover rows marked `Manual`, `METROLIST_LOCAL` or `Local` into the User fork, including existing schema 65 installs. Recovery preserves offsets, translations and drafts, leaves active and stashed User forks intact, and clears the old source so Revert stays reverted after a restart.
+
+The v13 editor kept the original provider name when editing existing lyrics. Neither v13 nor v14 recorded each row's origin. LRC, plain text and optional cache fields cannot identify every surviving v13 edit. Schema 66 therefore protects every existing nonempty lyrics cache entry once, including v14 fetched entries. Confirmed misses and offset-only rows remain eligible for automatic lookup. Legacy backup conversion applies the same protection to backups from schemas before 66.
+
+Protected entries stay in the provider cache with their original text, provider and offset. Automatic lookup shows them even if their provider is disabled, and timing preferences, fetched results and confirmed misses cannot replace them. Translation cache updates preserve protection. A successful manual refetch or explicit provider selection ends protection for that song; restarting or restoring a schema 66 backup does not enable it again. Rows fetched after the migration follow normal cache rules.
+
+Since v14.0.0, `LyricsRepository.getLyrics` could replace unmarked edits or unrecognized `Manual` rows through `CacheDao.cacheLyricsIfUnchanged` when saving fetched lyrics or a confirmed miss. The older migrations copied the lyrics rows. An overwritten value requires an older database or backup to recover; the current row cannot reconstruct it.
+
 The lyrics settings preview uses the current song's lyrics only during active playback and otherwise shows the bundled sample without starting a lookup. Source rows reorder by a drag handle or its move menu.
 
 ### AI translation
@@ -326,6 +344,8 @@ The lyrics settings preview uses the current song's lyrics only during active pl
 Automatic translation checks each main and background vocal for a meaningful passage outside the target language, including phrases inside mixed-language lines. The detector returns a source passage, not a dominant-language flag; invalid passages fail detection without caching a negative decision. Only vocals with a foreign passage are translated, and results appear beneath them. Detection batches up to 40 unique vocals. The song-level detector for romanization and connection checks reads lyrics in batches of at most 8,000 characters and stops at the first foreign passage; a negative decision needs every batch to succeed. The translation cache covers both vocal sources and separates forced from automatic requests.
 
 Detection and translation retry once after a failure, except for cancellation, missing credentials, HTTP 401/403 and 429. A final failure keeps the original lyrics and shows a short snackbar naming the cause. HTTP 200 alone does not prove a usable translation. Playback exports record the stage, provider, model, failure category, output lengths, finish reason and reasoning presence, but never lyrics, response bodies or credentials. Gemini thought parts are excluded. Manual translation enriches displayed lyrics without refetching and keeps the source, offset and video retiming.
+
+Gemini requests go to `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent` by default. A saved endpoint with the old `{model}` placeholder is upgraded to that URL. When an endpoint names a model, a model selected in settings replaces it; an endpoint with `{model}` takes the selected model, or the default when none is selected.
 
 OpenRouter setup is a three-step page under Lyrics settings. It uses PKCE browser sign-in, stores the returned account key separately from manual keys and derives the target language from the saved choice, app language or system locale. Done sends one short sample through the chosen free model with a 128-token budget and enables translation only after a valid response; a failure keeps the existing configuration.
 
@@ -373,11 +393,15 @@ Android and desktop offer an opt-in **SponsorBlock (podcasts)** switch. Only ite
 
 ### Sentry
 
+Only stable releases offer Sentry reporting. Builds whose app version contains `+` build metadata, including nightlies, never initialize Sentry or send crashes, ANRs, sessions or playback reports. These builds hide Sentry consent in onboarding and Privacy settings and preserve the saved consent for stable releases. Local crash logs and manual report sharing remain available.
+
 Every platform passes reports and breadcrumbs through `redactDiagnosticText` and `redactDiagnosticUrl` in `beforeSend` and `beforeBreadcrumb`, removing credentials, tokens, cookies, query strings, long opaque path segments and IP addresses. Playback reports attach the last 200 playback events. Android and desktop report playback failures only after recovery is exhausted or a track cannot start. iOS releases are named `com.metrolist.ios@<appVersion>` because sideloaded builds get random bundle IDs, and release workflows upload dSYMs. iOS reports HTTP 5xx automatically only for HTTPS on port 443 to `metrolist.cc`, its subdomains and `metroserverx.meowery.eu`; see [HTTP client errors](https://docs.sentry.io/platforms/apple/configuration/http-client-errors/).
 
 ### Imports and scrobbling
 
 Android account imports from Deezer, Tidal and Amazon Music handle one playlist or liked-songs collection at a time. Back from destination selection returns to the previous step, keeping CSV rows and mappings. Batches over `PlaylistImportManager.MAX_PLAYLIST_TRACKS` fail instead of truncating; Spotify reports skipped playlists. The desktop Spotify import can target Favorites, a new synced playlist or an editable synced playlist. Playlist file imports keep explicitly supplied titles as local custom metadata; bare URLs and filenames do not become titles, and local edits win on reimport.
+
+Android Spotify and Apple Music library imports open the destination picker for one playlist. Multiple playlists import sequentially through the foreground service into separate new synced playlists with their source names and covers. A failed playlist does not stop the rest; the final failure report includes completed counts and failed playlist names.
 
 Last.fm and ListenBrainz login dialogs link to account registration; ListenBrainz also links to its token page.
 

@@ -23,7 +23,7 @@ Android unit tests include the generated shared Compose catalog on their runtime
 
 Android lint uses `androidApp/lint-baseline.xml`. Translation and resource checks cannot see all shared Compose accessors, so lint disables `MissingTranslation`, `MissingQuantity`, `PluralsCandidate` and `UnusedResources`.
 
-`.editorconfig` changes run Android and desktop ktlint checks. Flatpak manifest and Makefile changes run manifest parsing and packaging-target dry runs in repository checks.
+`.editorconfig` changes run Android and desktop ktlint checks. Dispatch `verify-repository-checks.yml` to parse the Flatpak manifest and dry-run its Makefile targets.
 
 `make ios-test` parses all Swift host sources with the iOS Simulator SDK on macOS; it requires Xcode command-line tools.
 
@@ -46,6 +46,8 @@ In Settings > Appearance > Navigation and gestures, toggle Slim bottom navigatio
 For Android lookahead crashes, repeat portrait/landscape rotation, background/resume and Wi-Fi/mobile/offline changes while playback starts and while the player is expanded or collapsed. Use floating, slim and standard navigation, cross the bar/rail window-size breakpoint, and toggle the navigation preferences from a scrolled settings page. Search, submit and go Back after each change. The page, scroll position and Back path must survive; bars keep their expand/shrink motion, icon transitions, shadows and spacing. Resize the desktop sidebar and verify its width animation. Repeat the shared navigation checks on iOS.
 
 ### Collections and pages
+
+On Android, desktop and iOS, hide a library item, hide an artist or podcast from Home, block an artist, dislike a song and block a Listen Together user. Each restore page gets one hint with an Open settings action. Use the action to open the named list, then restore the item. Check the existing player and navigation transitions. Hide or block another item for the same page, then relaunch and repeat. The hint must not return. Repeat with existing hidden or blocked items and unset hint flags, and check that the next action shows the hint. Hide from Home must keep its Undo snackbar.
 
 Open community playlists and YouTube mixes from Home on a slow connection. Edit appears only for owned or editable local playlists, including in the overflow menu. The playlist page keeps the tapped cover through loading, pagination, refresh and Back, while custom covers and local mosaics keep priority. Check that the description and track-count line expand and fade as album descriptions do, including when no preview is cached and with system animations disabled.
 
@@ -92,6 +94,8 @@ Resize artist pages to narrow, wide and short windows in light and dark themes. 
 On desktop, open an artist page during playback, then open Queue and fully expand the Lyrics drawer. Open and close both drawers, reverse their animations and drag their resize handles. The artist actions stay within their slot without a layout exception. Check Subscribe, Radio, Shuffle and Play after resizing, including their press animations, large text and RTL. Repeat artist navigation and window resizing on Android and the shared iOS host.
 
 Check immediate Subscribe/Subscribed changes on a slow connection, repeated taps, failed requests and refreshes during a request. Only a successful subscribe produces confetti; repeat with the animator duration scale set to zero.
+
+While signed out, subscribe to an artist, reopen the page and restart the app. The artist stays subscribed and appears in the local library. Unsubscribe and check that the bookmark clears. While signed in, successful subscription changes also update the local bookmark; failed requests preserve it.
 
 For About Artist on Android and desktop, sign out of Last.fm and open the artist's About card with cached and uncached photos, then return. Check the photo morph in both directions with normal and reduced animations. Open the hero and a peeking neighbor, swipe several viewer pages, zoom, and close with the button and Back. The return morph lands on the displayed photo without moving the gallery underneath it. Repeat mouse drag, Shift+wheel, narrow/wide resizing, slow images, missing Last.fm data, sharing, downloads and failed detail requests. Last.fm metadata and separate YouTube text stay visible. On the shared iOS host, check gallery scrolling and the About details. Carousel captions on other screens stay inside their masks.
 
@@ -219,6 +223,7 @@ python3 scripts/test_translation_mechanics.py
 python3 scripts/test_hooks.py
 python3 scripts/test_build_ios.py
 python3 scripts/test_build_appimage.py
+python3 scripts/test_linux_appimage_apprun.py
 python3 scripts/test_desktop_smoke.py
 python3 scripts/test_dmg_packaging.py
 python3 scripts/test_distribution.py
@@ -235,7 +240,7 @@ python3 scripts/test_deps.py
 python3 scripts/test_find_unused_strings.py
 ```
 
-Repository checks run for shared catalog and translation-validator changes, iOS version-script changes, and profiler changes. The workflow-trigger test ensures every Python check can trigger its own workflow and covers these script inputs.
+CI runs the cheap repository checks in its selection job on every push and PR, including docs-only changes. The workflow tests cover path selection, manual packaging, task arguments and release verification without starting builds.
 
 `test_generate_android_strings.py` compiles the production task and source filters in an isolated Gradle build, then checks scanning, missing keys, XML escaping and stale output removal. It runs in Android debug CI. Set `GRADLE` to use a different Gradle executable.
 
@@ -275,13 +280,25 @@ Each attempted launch uploads a `desktop-smoke-<platform>-<arch>` artifact, with
 
 ## CI path selection
 
-The platform workflow YAML files under `.github/workflows/` define triggers and the full check lists.
+[CI](../.github/workflows/ci.yml) handles PRs and pushes to main with one selection job. That job also runs the cheap repository checks, including translation validation. Docs-only changes stop there. New runs cancel unfinished checks for the same PR or branch.
 
-`.github/scripts/ci_paths.py` owns the path rules for push and PR verification. Common sources, common tests, Compose resources and documentation run one Linux x64 desktop compile and shared JVM tests. Android, desktop and iOS source sets select their platform. JVM shared sources select Android and desktop. Gradle scripts, catalogs, wrapper files, shared actions, release workflows and unknown paths select every platform. Platform workflow files select their platform. An unreadable diff runs every check. Version-only release bumps reuse the source revision's checks through the [release gate](releasing.md#reuse-verification).
+`.github/scripts/ci_paths.py` owns the path rules. Common production code and Compose resources select Android, desktop and iOS. Common tests and JVM shared sources select Android and desktop. Platform source sets select their platform. Gradle scripts, catalogs, wrapper files, shared actions, release workflows and unknown paths select every platform. Deleted paths and both sides of renames count. An unreadable diff selects every platform. Version-only release bumps reuse the source revision's checks through the [release gate](releasing.md#reuse-verification).
 
-Main pushes run the affected platform's unit tests. Shared-only changes skip the desktop ARM64 matrix and packaging-script tests. Other desktop changes verify Linux x64 and, on main, ARM64. iOS verification uses macOS; Linux cannot compile its Apple SDK targets. Arch packaging runs for its recipe and global build changes, with a manual dispatch for other packaging changes. Verification uses Ubuntu 26.04, while AppImage packaging uses 24.04 for its older glibc baseline. Run `python3 -m unittest discover -s .github/tests` and `actionlint` after workflow edits. The Python tests simulate path selection, metadata bumps, trusted check results, cache policies and manual package routing without calling Actions.
+Android runs ktlint, lint and unit tests. PRs also assemble the debug APK. Desktop verifies Linux x64 with ktlint, shared and desktop tests, and integrity checks. PRs also request desktop compilation. On main, Nightly supplies Android APK and Linux/Windows native builds, so CI omits debug APK assembly and the separate desktop compile task. Tests still compile their dependencies. iOS runs Swift validation and simulator backend tests on macOS for common production, iOS or build-input changes. Linux cannot compile Apple SDK targets.
 
-Repository checks always validate translations. Flatpak validation runs for changes to `flatpak/`, `Makefile`, workflows or its changed-path script. A failed changed-path check runs Flatpak validation too.
+ARM64 desktop verification, macOS and Windows packaging, Arch builds, Flatpak validation and packaged launch checks run only through manual workflows or the existing release paths. Native Nightly builds skip launch probes. Arch compilation can take an hour and Flatpak validation installs extra tools, so neither runs automatically for packaging edits. Dispatch `build-desktop.yml`, `verify-aur-package.yml` or `verify-repository-checks.yml` when changing their inputs. `release.yml` keeps its verification gate, signing, Sentry finalization and publication steps.
+
+The table counts jobs that acquire a runner, including selection jobs and Nightly's five jobs on eligible main pushes. It excludes skipped jobs, tags and manual runs. The before counts use the former path rules. The [main desktop run](https://github.com/MetrolistGroup/Metrolist/actions/runs/43665327533) had both Linux architectures. The [sample PR desktop run](https://github.com/MetrolistGroup/Metrolist/actions/runs/43663069470) had Linux x64 only; its four sibling Verify workflows added five runner jobs.
+
+| Change | Before | After |
+| --- | ---: | ---: |
+| Docs-only main push | 7 | 1 |
+| Common production main push | 12 | 9 |
+| Android source-only main push | 11 | 7 |
+| Desktop source-only main push | 13 | 7 |
+| Sample desktop PR, `8964d2a` | 7 | 2 |
+
+A PR touching global build inputs now runs four jobs. Run `python3 -m unittest discover -s .github/tests` and `actionlint` after workflow edits. Verification uses Ubuntu 26.04; AppImage packaging keeps Ubuntu 24.04 for its older glibc baseline.
 
 ## CI cache rules
 

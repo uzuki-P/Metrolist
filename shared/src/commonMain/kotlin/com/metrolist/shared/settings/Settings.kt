@@ -38,6 +38,9 @@ import com.metrolist.shared.constants.AudioBoostDbKey
 import com.metrolist.shared.constants.AudioTrackPlaybackParamsKey
 import com.metrolist.shared.constants.AutoPureBlackKey
 import com.metrolist.shared.constants.BlockAiSlopArtistsKey
+import com.metrolist.shared.constants.BlockedArtistsUndoHintShownKey
+import com.metrolist.shared.constants.BlockedSongsUndoHintShownKey
+import com.metrolist.shared.constants.BlockedUsersUndoHintShownKey
 import com.metrolist.shared.constants.CachedCollectionSortDirectionKey
 import com.metrolist.shared.constants.CachedCollectionSortKey
 import com.metrolist.shared.constants.CanvasCacheSizeKey
@@ -82,6 +85,8 @@ import com.metrolist.shared.constants.GlobalLyricsOffsetMsKey
 import com.metrolist.shared.constants.GridItemSizeKey
 import com.metrolist.shared.constants.HasNewUploadsKey
 import com.metrolist.shared.constants.HiddenHomeItemsJsonKey
+import com.metrolist.shared.constants.HiddenHomeUndoHintShownKey
+import com.metrolist.shared.constants.HiddenLibraryUndoHintShownKey
 import com.metrolist.shared.constants.HideNonMusicalVideosKey
 import com.metrolist.shared.constants.HideRecentSearchesKey
 import com.metrolist.shared.constants.HideShortSongsKey
@@ -503,7 +508,13 @@ class Settings(
             lyricsOpenRouterOAuthKey.takeIf(String::isNotBlank)?.let { it to "https://openrouter.ai/api/v1/chat/completions" }
                 ?: (lyricsAiApiKeyFor(provider) to lyricsAiBaseUrl)
         } else {
-            lyricsAiApiKeyFor(provider) to lyricsAiBaseUrl
+            val baseUrl =
+                if (provider == "Gemini" && lyricsAiBaseUrl == AiProviderPresets.LEGACY_GEMINI_ENDPOINT) {
+                    AiProviderPresets.find("Gemini")?.endpoint ?: lyricsAiBaseUrl
+                } else {
+                    lyricsAiBaseUrl
+                }
+            lyricsAiApiKeyFor(provider) to baseUrl
         }
 
     var lyricsAiBaseUrl by preference("https://openrouter.ai/api/v1/chat/completions")
@@ -858,6 +869,12 @@ class Settings(
     private fun librarySortingByFilter(): Map<String, LibrarySorting> =
         runCatching { Json.decodeFromString<Map<String, LibrarySorting>>(librarySortingByFilterJson) }
             .getOrDefault(emptyMap())
+
+    var hiddenLibraryUndoHintShown by preference(HiddenLibraryUndoHintShownKey, false)
+    var hiddenHomeUndoHintShown by preference(HiddenHomeUndoHintShownKey, false)
+    var blockedArtistsUndoHintShown by preference(BlockedArtistsUndoHintShownKey, false)
+    var blockedSongsUndoHintShown by preference(BlockedSongsUndoHintShownKey, false)
+    var blockedUsersUndoHintShown by preference(BlockedUsersUndoHintShownKey, false)
 
     var hiddenLibraryPlaylistsJson by preference("[]")
     var hiddenHomeItemsJson by preference(HiddenHomeItemsJsonKey, "[]")

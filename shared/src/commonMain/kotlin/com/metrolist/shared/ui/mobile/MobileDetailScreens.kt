@@ -78,6 +78,7 @@ import com.metrolist.shared.state.GlobalYouTubeRepository
 import com.metrolist.shared.state.PodcastLibrary
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
+import com.metrolist.shared.state.setArtistSubscribed
 import com.metrolist.shared.ui.components.AddSongSheetContent
 import com.metrolist.shared.ui.components.CollectionPreviews
 import com.metrolist.shared.ui.components.ContainedLoadingIndicator
@@ -178,7 +179,7 @@ internal fun MobileAlbumScreen(
                     playbackController.playQueue(queue)
                 },
                 onShuffle = { queue ->
-                    playbackController.playQueue(queue.shuffled())
+                    playbackController.shuffleQueue(queue)
                 },
                 onMoreOptions = { onMoreOptions(page.album) },
                 isFavorite = isFavorite,
@@ -206,7 +207,7 @@ internal fun MobileAlbumScreen(
                         selectedSongs = selectedSongs,
                         onPlay = { playbackController.playQueue(selectedSongs) },
                         onShuffle = {
-                            playbackController.playQueue(selectedSongs.shuffled())
+                            playbackController.shuffleQueue(selectedSongs)
                         },
                         allSelected = selection.allSelected(allIds),
                         onDone = selection::exit,
@@ -248,6 +249,7 @@ internal fun MobileAlbumScreen(
 @Composable
 internal fun MobileArtistScreen(
     artistId: String,
+    database: MusicDatabase,
     loader: MobileDetailLoader<ArtistPageResult>,
     subscription: ArtistSubscriptionState,
     fallbackTitle: String? = null,
@@ -311,10 +313,13 @@ internal fun MobileArtistScreen(
     fun playArtistSongs(shuffle: Boolean) {
         scope.launch {
             val songs = GlobalYouTubeRepository.instance.getArtistSongs(artistId, page) { operationError = errorText }
-            val queue = if (shuffle) songs.shuffled() else songs
-            queue.firstOrNull()?.let {
-                if (!shuffle && playbackController.state.value.isShuffled) playbackController.toggleShuffle()
-                playbackController.play(it, queue, songsOnly = true)
+            if (shuffle) {
+                playbackController.shuffleQueue(songs, songsOnly = true)
+            } else {
+                songs.firstOrNull()?.let {
+                    if (playbackController.state.value.isShuffled) playbackController.toggleShuffle()
+                    playbackController.play(it, songs, songsOnly = true)
+                }
             }
         }
     }
@@ -356,7 +361,14 @@ internal fun MobileArtistScreen(
         onSubscribeClick = {
             subscription.toggle(
                 scope,
-                request = { GlobalYouTubeRepository.instance.subscribeChannel(artistId, it) },
+                request = {
+                    database.setArtistSubscribed(
+                        GlobalYouTubeRepository.instance,
+                        artistId,
+                        artist?.title ?: fallbackTitle.orEmpty(),
+                        it,
+                    )
+                },
                 onError = { onError(errorText) },
             )
         },
@@ -762,8 +774,9 @@ internal fun MobilePlaylistScreen(
                 },
                 onShuffle = {
                     loadRemaining { complete ->
-                        val shuffled = complete.filterForPlaylistSearch(selectionQuery).shuffled()
-                        shuffled.firstOrNull { !it.isUnavailable }?.let { playbackController.play(it, shuffled) }
+                        playbackController.shuffleQueue(
+                            complete.sortedForPlaylist(sorting.sort, sorting.direction).filterForPlaylistSearch(selectionQuery),
+                        )
                     }
                 },
                 onMoreOptions = { onMoreOptions(playlist) },
@@ -787,9 +800,7 @@ internal fun MobilePlaylistScreen(
                         selectedSongs = selectedSongs,
                         onPlay = { selectedSongs.firstOrNull { !it.isUnavailable }?.let { playbackController.play(it, selectedSongs) } },
                         onShuffle = {
-                            selectedSongs.shuffled().let { s ->
-                                s.firstOrNull { !it.isUnavailable }?.let { playbackController.play(it, s) }
-                            }
+                            playbackController.shuffleQueue(selectedSongs)
                         },
                         allSelected = selection.allSelected(displayedKeys),
                         onDone = selection::exit,

@@ -28,7 +28,7 @@ Run `winget validate --manifest PATH` on Windows, then test clean install, upgra
 
 ## Homebrew
 
-`packaging/homebrew/metrolist.rb.in` selects a checksummed DMG by architecture and installs `Metrolist.app`. Output belongs at `Casks/metrolist.rb` in the configured tap. Preserve Gatekeeper and user data.
+[MetrolistGroup/homebrew-tap](https://github.com/MetrolistGroup/homebrew-tap) publishes the `metrolist` cask for macOS and a Linux formula that unpacks the release AppImage. Its scheduled workflow points both at the latest stable release using the release's `SHA256SUMS`, then runs `brew style`, `brew audit` and an install on macOS and Linux, so no release token is needed. Asset names and `SHA256SUMS` entries for the DMGs and AppImages must stay stable for it. `packaging/homebrew/metrolist.rb.in` remains the generator's cask template; keep it in step with the tap. Preserve Gatekeeper and user data.
 
 Run `brew style --cask PATH` and `brew audit --cask --online TOKEN` in the tap. Test both architectures and follow [unsigned-app installation](install/macos.md#install-and-verify).
 
@@ -39,6 +39,10 @@ The source recipe and verification live in `aur/`. The generator writes `aur/rel
 ## Nix
 
 `flake.nix` uses `appimageTools` for Linux x86_64/aarch64 and pins nixpkgs. Generated output includes `nix/packaging/release.json` with fixed-output hashes. The FHS sandbox uses the host's ALSA configuration. Do not add `alsa-plugins` to `extraPkgs`, because its `/etc/alsa` hides the host's PipeWire configuration.
+
+The sandbox includes `glib-networking` and adds its GIO modules to `GIO_EXTRA_MODULES` for WebKitGTK TLS. It preserves any existing module paths.
+
+Nix and Arch install `Metrolist.desktop`, matching the AppImage and native AppImage desktop files, `StartupWMClass=Metrolist` and the Linux window's `Metrolist` app ID.
 
 ```sh
 nix build path:./build/distribution/nix
@@ -92,7 +96,7 @@ python3 .github/tests/test_release_workflows.py
 python3 .github/tests/test_repository_checks.py
 bash -n scripts/build_appimage.sh
 shellcheck scripts/build_appimage.sh packaging/flatpak/com.metrolist.desktop
-actionlint .github/workflows/release.yml .github/workflows/verify-repository-checks.yml
+actionlint .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/verify-repository-checks.yml
 ```
 
 `scripts/build_appimage.sh` accepts a `GRADLE` executable override and rejects a successful build without a nonempty AppImage.

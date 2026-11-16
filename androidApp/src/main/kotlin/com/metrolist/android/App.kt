@@ -63,6 +63,7 @@ import com.metrolist.shared.state.GlobalYouTube
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
 import com.metrolist.shared.state.coreModule
+import com.metrolist.shared.utils.isCrashReportingAvailable
 import com.metrolist.shared.youtube.di.sharedModule
 import com.metrolist.shared.youtube.playback.AndroidContextProvider
 import com.metrolist.shared.youtube.playback.PlaybackNetworkStateStore
@@ -305,6 +306,7 @@ class App :
     }
 
     private fun migrateTelemetryConsent() {
+        if (!isCrashReportingAvailable()) return
         val preferences = getSharedPreferences("metrolist_security_migrations", MODE_PRIVATE)
         if (!preferences.getBoolean("telemetry_consent_v1", false)) {
             Settings.shared.sentryEnabled = false
@@ -329,7 +331,7 @@ class App :
     }
 
     fun completeOnboarding(sendCrashReports: Boolean) {
-        Settings.shared.sentryEnabled = sendCrashReports
+        if (isCrashReportingAvailable()) Settings.shared.sentryEnabled = sendCrashReports
         onboardingManager.complete()
         setPlaybackServicesEnabled(true)
         SentryManager.initialize(this)
@@ -383,7 +385,8 @@ class App :
             val settings = Settings.shared
             val location = Json.encodeToString(listOf(settings.audioCacheLocation, settings.downloadLocation, settings.customDownloadPath))
             val now = System.currentTimeMillis()
-            if (startupMaintenanceDue(settings.androidLastStorageAudit, now, STORAGE_AUDIT_INTERVAL_MS) ||
+            if (get<AudioCacheManager>().needsLegacyAudioImport() ||
+                startupMaintenanceDue(settings.androidLastStorageAudit, now, STORAGE_AUDIT_INTERVAL_MS) ||
                 settings.androidStorageAuditLocation != location
             ) {
                 runStartupStorageAudit(
