@@ -1,5 +1,7 @@
 # Agent guide
 
+> **Metrolist+ fork:** read [PLUS_AGENTS.md](PLUS_AGENTS.md) first. Its push and PR rules come before this guide.
+
 Metrolist is a YouTube Music client for Android, desktop and iOS.
 
 ## One task per PR

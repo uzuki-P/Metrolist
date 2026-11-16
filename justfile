@@ -22,7 +22,7 @@ dev-desktop:
 
 # Run the shared and desktop unit tests.
 test:
-    {{gradle}} --no-parallel :shared:desktopTest :desktopApp:test
+    {{gradle}} --no-parallel :shared:desktopTest :desktopApp:jvmTest
 
 # Build the release APK and stage a timestamped copy in _apk/.
 stage-apk:
