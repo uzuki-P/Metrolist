@@ -34,14 +34,7 @@ internal object LinuxOverlayWindowSupport : OverlayWindowSupport {
     override fun requestInteractiveResize(
         window: Window,
         edge: ResizeEdge,
-    ): Boolean {
-        val action =
-            when (edge) {
-                ResizeEdge.LEFT -> LinuxWindowMove.RESIZE_LEFT
-                ResizeEdge.RIGHT -> LinuxWindowMove.RESIZE_RIGHT
-            }
-        return runCatching { LinuxWindowMove.start(window, action) }.getOrDefault(false)
-    }
+    ): Boolean = runCatching { LinuxWindowMove.start(window, edge.ewmhDirection) }.getOrDefault(false)
 
     override fun setClickThrough(
         window: Window,

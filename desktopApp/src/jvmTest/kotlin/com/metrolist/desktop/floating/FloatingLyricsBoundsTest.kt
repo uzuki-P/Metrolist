@@ -59,4 +59,11 @@ class FloatingLyricsBoundsTest {
 
         assertEquals(Rectangle(-1280, 50, 560, 120), bounds)
     }
+
+    @Test
+    fun unsetHeightOpensAtTheDefaultHeight() {
+        val bounds = resolveFloatingLyricsBounds(-1, -1, -1, -1, listOf(primary))
+
+        assertEquals(FLOATING_LYRICS_DEFAULT_HEIGHT, bounds.height)
+    }
 }

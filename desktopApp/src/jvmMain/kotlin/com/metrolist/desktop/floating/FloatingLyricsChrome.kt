@@ -9,6 +9,9 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,8 +27,7 @@ import java.awt.Rectangle
 import java.awt.Window
 
 // Adapted from Metrolist Desktop's floating/WindowChrome.kt, a port of lyrics-float
-// ui/WindowChrome.kt (912333d). Resizing keeps only the left and right edges because the
-// window's height follows its content.
+// ui/WindowChrome.kt (912333d).
 
 /**
  * Move gesture for an undecorated window. setLocation dragging jitters under XWayland; the
@@ -69,31 +71,45 @@ internal fun Modifier.windowDragHandle(
 private fun pointerOnScreen(): Point? = MouseInfo.getPointerInfo()?.location
 
 /**
- * Invisible left and right edge targets with resize cursors. A drag hands off to the WM's
- * interactive resize; when the WM refuses, the edge tracks the drag with setBounds, clamped to
- * the window's AWT minimum width. Like the move, it follows the pointer's screen position.
+ * Invisible edge and corner targets with resize cursors. A drag hands off to the WM's interactive
+ * resize; when the WM refuses, the target tracks the drag with setBounds, clamped to the window's
+ * AWT minimum size. Like the move, it follows the pointer's screen position.
  */
 @Composable
-internal fun BoxScope.WindowWidthResizeEdges(
+internal fun BoxScope.WindowResizeZones(
     window: Window,
     support: OverlayWindowSupport,
 ) {
-    ResizeEdgeHandle(window, support, ResizeEdge.LEFT, Modifier.align(Alignment.CenterStart))
-    ResizeEdgeHandle(window, support, ResizeEdge.RIGHT, Modifier.align(Alignment.CenterEnd))
+    val corner = Modifier.size(CORNER_SIZE)
+    ResizeHandle(window, support, ResizeEdge.TOP_LEFT, corner.align(Alignment.TopStart))
+    ResizeHandle(window, support, ResizeEdge.TOP_RIGHT, corner.align(Alignment.TopEnd))
+    ResizeHandle(window, support, ResizeEdge.BOTTOM_LEFT, corner.align(Alignment.BottomStart))
+    ResizeHandle(window, support, ResizeEdge.BOTTOM_RIGHT, corner.align(Alignment.BottomEnd))
+    val horizontal = Modifier.fillMaxWidth(EDGE_FRACTION).height(EDGE_THICKNESS)
+    ResizeHandle(window, support, ResizeEdge.TOP, horizontal.align(Alignment.TopCenter))
+    ResizeHandle(window, support, ResizeEdge.BOTTOM, horizontal.align(Alignment.BottomCenter))
+    val vertical = Modifier.width(EDGE_THICKNESS).fillMaxHeight(EDGE_FRACTION)
+    ResizeHandle(window, support, ResizeEdge.LEFT, vertical.align(Alignment.CenterStart))
+    ResizeHandle(window, support, ResizeEdge.RIGHT, vertical.align(Alignment.CenterEnd))
 }
 
 @Composable
-private fun ResizeEdgeHandle(
+private fun ResizeHandle(
     window: Window,
     support: OverlayWindowSupport,
     edge: ResizeEdge,
     modifier: Modifier,
 ) {
+    val cursor =
+        when (edge) {
+            ResizeEdge.TOP_LEFT, ResizeEdge.BOTTOM_RIGHT -> Cursor.NW_RESIZE_CURSOR
+            ResizeEdge.TOP_RIGHT, ResizeEdge.BOTTOM_LEFT -> Cursor.NE_RESIZE_CURSOR
+            ResizeEdge.TOP, ResizeEdge.BOTTOM -> Cursor.N_RESIZE_CURSOR
+            ResizeEdge.LEFT, ResizeEdge.RIGHT -> Cursor.E_RESIZE_CURSOR
+        }
     Box(
         modifier
-            .width(10.dp)
-            .fillMaxHeight()
-            .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(Cursor.E_RESIZE_CURSOR)))
+            .pointerHoverIcon(PointerIcon(Cursor.getPredefinedCursor(cursor)))
             .pointerInput(window, edge, support) {
                 var manualBase: Rectangle? = null
                 var pointerStart: Point? = null
@@ -109,11 +125,16 @@ private fun ResizeEdgeHandle(
                         val from = pointerStart ?: return@detectDragGestures
                         val now = pointerOnScreen() ?: return@detectDragGestures
                         val dx = now.x - from.x
+                        val dy = now.y - from.y
                         val width =
-                            (if (edge == ResizeEdge.RIGHT) base.width + dx else base.width - dx)
+                            (base.width + (if (edge.isRight) dx else 0) - (if (edge.isLeft) dx else 0))
                                 .coerceAtLeast(window.minimumSize.width)
-                        val x = if (edge == ResizeEdge.LEFT) base.x + base.width - width else base.x
-                        window.setBounds(x, base.y, width, window.height)
+                        val height =
+                            (base.height + (if (edge.isBottom) dy else 0) - (if (edge.isTop) dy else 0))
+                                .coerceAtLeast(window.minimumSize.height)
+                        val x = if (edge.isLeft) base.x + base.width - width else base.x
+                        val y = if (edge.isTop) base.y + base.height - height else base.y
+                        window.setBounds(x, y, width, height)
                     },
                     onDragEnd = { manualBase = null },
                     onDragCancel = { manualBase = null },
@@ -121,3 +142,7 @@ private fun ResizeEdgeHandle(
             },
     )
 }
+
+private val CORNER_SIZE = 16.dp
+private val EDGE_THICKNESS = 8.dp
+private const val EDGE_FRACTION = 0.8f

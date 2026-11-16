@@ -5,10 +5,8 @@
 
 package com.metrolist.desktop.floating
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -18,22 +16,26 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.ComposeWindow
 import androidx.compose.ui.awt.SwingWindow
-import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.dp
 import com.metrolist.desktop.state.app.UiState
 import com.metrolist.desktop.state.playback.LyricsState
 import com.metrolist.desktop.state.playback.PlayerState
 import com.metrolist.desktop.ui.theme.MetrolistTheme
+import com.metrolist.desktop.utils.ComposeTrayManager
 import com.metrolist.shared.generated.resources.Res
-import com.metrolist.shared.generated.resources.floating_lyrics_no_lyrics
 import com.metrolist.shared.generated.resources.floating_lyrics_title
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsBar
 import com.metrolist.shared.ui.components.lyrics.FloatingLyricsContent
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsFrame
+import com.metrolist.shared.ui.settings.SettingsPageId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -43,7 +45,6 @@ import org.jetbrains.compose.resources.stringResource
 import java.awt.Dimension
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
-import kotlin.math.ceil
 import java.awt.Color as AwtColor
 import java.awt.Window as AwtWindow
 
@@ -53,9 +54,11 @@ import java.awt.Window as AwtWindow
 
 /**
  * The floating lyrics window: transparent, undecorated, always on top, not focusable and out
- * of the taskbar, draggable anywhere and resizable from its side edges. It sits in the
- * application scope next to the main window, so lyrics keep loading while the main window is
- * hidden to the tray, and shows while floating lyrics are on and a track is loaded.
+ * of the taskbar, resizable from every edge and corner. Hovering shows the control bar, which
+ * is also the move handle, since the lyrics take drags and the wheel for scrolling. It sits in
+ * the application scope next to the main window, so lyrics keep loading while the main window
+ * is hidden to the tray, and shows while floating lyrics are on and a track is loaded (and
+ * playing, when it hides while paused).
  */
 @Composable
 fun FloatingLyricsWindow() {
@@ -65,7 +68,18 @@ fun FloatingLyricsWindow() {
     LaunchedEffect(enabled, track?.id, settings.lyricsProviderOrder, settings.lyricsEnabledProviders) {
         if (enabled && track != null) LyricsState.fetchLyrics(track)
     }
-    if (!enabled || track == null) return
+    // A pause only counts once it lasts, so skipping between songs does not flash the window.
+    var pausedLongEnough by remember { mutableStateOf(false) }
+    val playing = PlayerState.isPlaying
+    LaunchedEffect(playing) {
+        if (playing) {
+            pausedLongEnough = false
+        } else {
+            delay(PAUSE_HIDE_DELAY_MS)
+            pausedLongEnough = true
+        }
+    }
+    if (!enabled || track == null || (settings.floatingLyricsHideWhenPaused && pausedLongEnough)) return
 
     val support = OverlayWindowSupport.current
     LaunchedEffect(support) {
@@ -82,7 +96,7 @@ fun FloatingLyricsWindow() {
                     savedX = settings.floatingLyricsX,
                     savedY = settings.floatingLyricsY,
                     savedWidth = settings.floatingLyricsWidth,
-                    height = INITIAL_HEIGHT,
+                    savedHeight = settings.floatingLyricsHeight,
                     screens = floatingLyricsScreens(),
                 )
             ComposeWindow().apply {
@@ -98,7 +112,7 @@ fun FloatingLyricsWindow() {
                 isResizable = true
                 focusableWindowState = false
                 isAutoRequestFocus = false
-                minimumSize = Dimension(FLOATING_LYRICS_MIN_WIDTH, 1)
+                minimumSize = Dimension(FLOATING_LYRICS_MIN_WIDTH, FLOATING_LYRICS_MIN_HEIGHT)
                 setBounds(bounds)
             }
         },
@@ -115,7 +129,6 @@ private fun FloatingLyricsWindowContent(
 ) {
     val settings = Settings.shared
     val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
     var mappingSettled by remember { mutableStateOf(false) }
 
     // Mapping-time placement: keep overriding for a few frames because AWT/KWin re-place the
@@ -164,6 +177,7 @@ private fun FloatingLyricsWindowContent(
                             settings.floatingLyricsX = window.x
                             settings.floatingLyricsY = window.y
                             settings.floatingLyricsWidth = window.width
+                            settings.floatingLyricsHeight = window.height
                         }
                 }
             }
@@ -174,35 +188,80 @@ private fun FloatingLyricsWindowContent(
         }
     }
 
-    val placeholder = if (LyricsState.isLyricsLoading) "" else stringResource(Res.string.floating_lyrics_no_lyrics)
-    val playbackSpeed by PlayerState.player.playbackSpeed.collectAsState()
-    MetrolistTheme(seedColor = UiState.seedColor) {
-        Box(Modifier.fillMaxSize()) {
-            FloatingLyricsContent(
-                lyrics = LyricsState.currentLyricsEntries,
-                songId = PlayerState.currentTrack?.id,
-                timingOffsetMs = LyricsState.currentLyricsOffsetMs,
-                isPlaying = PlayerState.isPlaying,
-                currentPositionFlow = PlayerState.playbackPosition,
-                positionReader = PlayerState::currentMediaPositionMs,
-                playbackSpeed = playbackSpeed,
-                placeholder = placeholder,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .wrapContentHeight(Alignment.Top, unbounded = true)
-                        .onSizeChanged { size ->
-                            // The window's height follows its content: AWT sizes in scaled units.
-                            val height = ceil(size.height / density.density).toInt().coerceAtLeast(1)
-                            if (window.height != height) window.setSize(window.width, height)
-                        }.windowDragHandle(window, support),
-            )
-            if (!clickThrough) WindowWidthResizeEdges(window, support)
+    // Reset from the settings page: put the window back at its default place and size.
+    LaunchedEffect(window) {
+        snapshotFlow {
+            listOf(settings.floatingLyricsX, settings.floatingLyricsY, settings.floatingLyricsWidth, settings.floatingLyricsHeight)
+        }.collect { saved ->
+            if (saved.all { it == FLOATING_LYRICS_UNSET }) {
+                window.bounds = resolveFloatingLyricsBounds(-1, -1, -1, -1, floatingLyricsScreens())
+            }
         }
+    }
+
+    var hovered by remember { mutableStateOf(false) }
+    val playbackSpeed by PlayerState.player.playbackSpeed.collectAsState()
+    val lyrics = LyricsState.currentLyricsEntries
+    val dragHandle = Modifier.windowDragHandle(window, support)
+    MetrolistTheme(seedColor = UiState.seedColor) {
+        FloatingLyricsFrame(
+            barVisible = hovered && !clickThrough,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        awaitPointerEventScope {
+                            while (true) {
+                                when (awaitPointerEvent().type) {
+                                    PointerEventType.Enter -> hovered = true
+                                    PointerEventType.Exit -> hovered = false
+                                    else -> Unit
+                                }
+                            }
+                        }
+                    },
+            content = {
+                FloatingLyricsContent(
+                    lyrics = lyrics,
+                    agents = LyricsState.currentLyricsAgents,
+                    songId = PlayerState.currentTrack?.id,
+                    timingOffsetMs = LyricsState.currentLyricsOffsetMs,
+                    isPlaying = PlayerState.isPlaying,
+                    isLoading = LyricsState.isLyricsLoading,
+                    currentPositionFlow = PlayerState.playbackPosition,
+                    positionReader = PlayerState::currentMediaPositionMs,
+                    playbackSpeed = playbackSpeed,
+                    onSeek = { positionMs, source -> if (settings.lyricsClickToSeek) PlayerState.seekToPosition(positionMs, source) },
+                    // With nothing to scroll, the whole window moves it.
+                    modifier = Modifier.fillMaxSize().then(if (lyrics.isEmpty()) dragHandle else Modifier),
+                )
+                if (!clickThrough) WindowResizeZones(window, support)
+            },
+            bar = {
+                FloatingLyricsBar(
+                    title = PlayerState.currentTrack?.title,
+                    artists = PlayerState.currentTrack?.artists,
+                    onOpenLyricsSettings = { openSettingsPage(SettingsPageId.LYRICS) },
+                    onOpenSettings = { openSettingsPage(SettingsPageId.FLOATING_LYRICS) },
+                    onLock = if (support.supportsClickThrough) ({ settings.floatingLyricsClickThrough = true }) else null,
+                    onHide = { settings.floatingLyricsEnabled = false },
+                    buttonSize = 32.dp,
+                    modifier = Modifier.widthIn(max = BAR_MAX_WIDTH).then(dragHandle),
+                )
+            },
+        )
     }
 }
 
-private const val INITIAL_HEIGHT = 120
+/** Brings the main window back from the tray, open on [page] of the settings. */
+private fun openSettingsPage(page: SettingsPageId) {
+    UiState.selectedSettingsPage = page
+    UiState.showSettings = true
+    ComposeTrayManager.showWindow()
+}
+
+private val BAR_MAX_WIDTH = 520.dp
+private const val PAUSE_HIDE_DELAY_MS = 1_500L
 private const val PLACEMENT_FRAMES = 5
 private const val SHOW_POLL_MS = 50L
 private const val PERSIST_DEBOUNCE_MS = 500L

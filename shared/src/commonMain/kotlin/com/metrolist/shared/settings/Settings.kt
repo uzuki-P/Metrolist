@@ -530,13 +530,18 @@ class Settings(
     var floatingLyricsEnabled by preference(false)
     var floatingLyricsTextScale by preference(1f)
     var floatingLyricsBackgroundOpacity by preference(0.45f)
-    var floatingLyricsShowNextLine by preference(true)
     var floatingLyricsClickThrough by preference(false)
+    var floatingLyricsBarAtTop by preference(false)
+    var floatingLyricsHideWhenPaused by preference(false)
 
-    /** Window position and width in pixels, or -1 until the user moves or resizes the window. */
+    /**
+     * Window position and size, or -1 until the user moves or resizes the window. Pixels on Android; AWT
+     * screen units on desktop.
+     */
     var floatingLyricsX by preference(-1)
     var floatingLyricsY by preference(-1)
     var floatingLyricsWidth by preference(-1)
+    var floatingLyricsHeight by preference(-1)
 
     var lyricsHideStatusBarInFullscreen by preference(false)
 

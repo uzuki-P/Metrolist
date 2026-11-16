@@ -25,17 +25,20 @@ internal fun clampOverlayPosition(
         y = point.y.coerceIn(0, (screenHeight - height).coerceAtLeast(0)),
     )
 
-/** The saved width in pixels, or the screen width less both margins up to [maxWidth] when unset (negative). */
-internal fun floatingLyricsWidth(
-    savedWidth: Int,
-    screenWidth: Int,
+/**
+ * One side of the window in pixels: the saved length, or the screen less both margins up to [maxDefault] when
+ * unset (negative). Always between [min] (or the space available, when smaller) and the space available.
+ */
+internal fun floatingLyricsSpan(
+    saved: Int,
+    screen: Int,
     margin: Int,
-    maxWidth: Int,
-    minWidth: Int,
+    maxDefault: Int,
+    min: Int,
 ): Int {
-    val available = (screenWidth - 2 * margin).coerceAtLeast(1)
-    val width = if (savedWidth < 0) minOf(available, maxWidth) else savedWidth
-    return width.coerceIn(minOf(minWidth, available), available)
+    val available = (screen - 2 * margin).coerceAtLeast(1)
+    val length = if (saved < 0) minOf(available, maxDefault) else saved
+    return length.coerceIn(minOf(min, available), available)
 }
 
 /**

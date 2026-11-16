@@ -22,26 +22,16 @@ import android.util.DisplayMetrics
 import android.view.Display
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.View
 import android.view.ViewConfiguration
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,16 +41,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.painter.Painter
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
@@ -74,36 +58,32 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.metrolist.android.MainActivity
-import com.metrolist.android.R
 import com.metrolist.android.ui.theme.getAppTypography
 import com.metrolist.shared.generated.resources.Res
-import com.metrolist.shared.generated.resources.floating_lyrics_hide
-import com.metrolist.shared.generated.resources.floating_lyrics_larger_text
-import com.metrolist.shared.generated.resources.floating_lyrics_lock
 import com.metrolist.shared.generated.resources.floating_lyrics_locked_hint
-import com.metrolist.shared.generated.resources.floating_lyrics_no_lyrics
-import com.metrolist.shared.generated.resources.floating_lyrics_resize
-import com.metrolist.shared.generated.resources.floating_lyrics_smaller_text
-import com.metrolist.shared.generated.resources.settings
 import com.metrolist.shared.settings.Settings
-import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_TEXT_SCALE
-import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_TEXT_SCALE
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsBar
 import com.metrolist.shared.ui.components.lyrics.FloatingLyricsContent
-import com.metrolist.shared.ui.icons.MetrolistIcons
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsFrame
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsResizeGrip
 import com.metrolist.shared.ui.settings.SettingsPageId
 import com.metrolist.shared.viewmodels.PlayerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import timber.log.Timber
@@ -113,8 +93,12 @@ import kotlin.math.roundToInt
 /**
  * Owns the floating lyrics overlay window. It lives in the playback service, so it keeps showing while the
  * app is in the background. The window is attached only while floating lyrics are on, the app may draw
- * overlays and a song is loaded; it reads lyrics and the clock from the app-wide [PlayerViewModel] and asks
- * it to fetch lyrics while shown, since the player screen may never open.
+ * overlays and a song is loaded (and playing, when it hides while paused); it reads lyrics and the clock from
+ * the app-wide [PlayerViewModel] and asks it to fetch lyrics while shown, since the player screen may never
+ * open.
+ *
+ * A tap on the lyrics shows the control bar and the resize grip. Dragging the bar moves the window, dragging
+ * the grip resizes it, and dragging the lyrics scrolls them.
  */
 internal class FloatingLyricsHost(
     serviceContext: Context,
@@ -142,8 +126,9 @@ internal class FloatingLyricsHost(
     private var controlsVisible by mutableStateOf(false)
     private var controlsTouchedAt by mutableLongStateOf(0L)
 
-    // In window coordinates; null while the controls are hidden.
-    private var resizeHandleBounds: Rect? = null
+    // In window coordinates, read only while the controls are visible.
+    private var barBounds: Rect? = null
+    private var gripBounds: Rect? = null
 
     private val permissionGranted = MutableStateFlow(FloatingLyricsPermission.canDrawOverlays(context))
 
@@ -168,9 +153,26 @@ internal class FloatingLyricsHost(
             .map { it.currentSong != null }
             .distinctUntilChanged()
 
+    // A pause only counts once it lasts, so skipping between songs does not flash the window.
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val playingRecently: Flow<Boolean> =
+        viewModel.uiState
+            .map { it.isPlaying }
+            .distinctUntilChanged()
+            .transformLatest { playing ->
+                if (!playing) delay(PAUSE_HIDE_DELAY_MS)
+                emit(playing)
+            }.onStart { emit(true) }
+
     private val shouldShow =
-        combine(snapshotFlow { Settings.shared.floatingLyricsEnabled }, permissionGranted, hasSong) { enabled, permitted, song ->
-            enabled && permitted && song
+        combine(
+            snapshotFlow { Settings.shared.floatingLyricsEnabled },
+            permissionGranted,
+            hasSong,
+            snapshotFlow { Settings.shared.floatingLyricsHideWhenPaused },
+            playingRecently,
+        ) { enabled, permitted, song, hideWhenPaused, playing ->
+            enabled && permitted && song && (playing || !hideWhenPaused)
         }.distinctUntilChanged().stateIn(scope, SharingStarted.Eagerly, false)
 
     fun start() {
@@ -190,6 +192,7 @@ internal class FloatingLyricsHost(
                     Settings.shared.floatingLyricsX,
                     Settings.shared.floatingLyricsY,
                     Settings.shared.floatingLyricsWidth,
+                    Settings.shared.floatingLyricsHeight,
                     Settings.shared.floatingLyricsClickThrough,
                 )
             }.collect { applyLayout() }
@@ -247,10 +250,6 @@ internal class FloatingLyricsHost(
                 setViewTreeSavedStateRegistryOwner(this@FloatingLyricsHost)
                 setViewTreeViewModelStoreOwner(this@FloatingLyricsHost)
                 addView(composeView)
-                // The window wraps its content, so keep it on screen when the lyrics grow or shrink.
-                addOnLayoutChangeListener { _, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom ->
-                    if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) applyLayout()
-                }
             }
         params = layoutParams
         view = frame
@@ -275,127 +274,87 @@ internal class FloatingLyricsHost(
         params = null
         gesture = null
         controlsVisible = false
-        resizeHandleBounds = null
     }
 
     @Composable
     private fun OverlayContent() {
         val state by viewModel.uiState.collectAsState()
         val playbackSpeed by viewModel.playbackSpeed.collectAsState()
+        val lockedHint = stringResource(Res.string.floating_lyrics_locked_hint)
         LaunchedEffect(controlsVisible, controlsTouchedAt) {
             if (controlsVisible) {
                 delay(CONTROLS_TIMEOUT_MS)
                 controlsVisible = false
             }
         }
+
+        fun openSettings(page: SettingsPageId) {
+            controlsVisible = false
+            runCatching { context.startActivity(MainActivity.settingsPageIntent(context, page)) }
+                .onFailure { Timber.w(it, "Could not open settings page $page") }
+        }
+
+        val barAtTop = Settings.shared.floatingLyricsBarAtTop
         MaterialTheme(colorScheme = darkColorScheme(), typography = getAppTypography()) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                FloatingLyricsContent(
-                    lyrics = state.lyrics,
-                    songId = state.currentSong?.id,
-                    timingOffsetMs = state.lyricsOffsetMs,
-                    isPlaying = state.isPlaying,
-                    currentPositionFlow = viewModel.currentPosition,
-                    positionReader = viewModel::currentPositionMs,
-                    playbackSpeed = playbackSpeed,
-                    placeholder = if (state.isLyricsLoading) "" else stringResource(Res.string.floating_lyrics_no_lyrics),
-                    modifier =
-                        Modifier.fillMaxWidth().clickable(interactionSource = null, indication = null) {
-                            controlsVisible = !controlsVisible
-                            controlsTouchedAt = SystemClock.uptimeMillis()
+            FloatingLyricsFrame(
+                barVisible = controlsVisible,
+                modifier = Modifier.fillMaxSize(),
+                content = {
+                    FloatingLyricsContent(
+                        lyrics = state.lyrics,
+                        agents = state.lyricsAgents,
+                        songId = state.currentSong?.id,
+                        timingOffsetMs = state.lyricsOffsetMs,
+                        isPlaying = state.isPlaying,
+                        isLoading = state.isLyricsLoading,
+                        currentPositionFlow = viewModel.currentPosition,
+                        positionReader = viewModel::currentPositionMs,
+                        playbackSpeed = playbackSpeed,
+                        // A tap toggles the controls, so it does not seek as well.
+                        onSeek = { _, _ -> },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    if (controlsVisible) {
+                        FloatingLyricsResizeGrip(
+                            atTop = !barAtTop,
+                            modifier =
+                                Modifier
+                                    .align(if (barAtTop) Alignment.BottomEnd else Alignment.TopEnd)
+                                    .padding(6.dp)
+                                    .size(GRIP_SIZE)
+                                    .onGloballyPositioned { gripBounds = it.boundsInRoot().toRect() },
+                        )
+                    }
+                },
+                bar = {
+                    FloatingLyricsBar(
+                        title = state.currentSong?.title,
+                        artists = state.currentSong?.artists,
+                        onOpenLyricsSettings = { openSettings(SettingsPageId.LYRICS) },
+                        onOpenSettings = { openSettings(SettingsPageId.FLOATING_LYRICS) },
+                        onLock = {
+                            controlsVisible = false
+                            Settings.shared.floatingLyricsClickThrough = true
+                            Toast.makeText(context, lockedHint, Toast.LENGTH_LONG).show()
                         },
-                )
-                if (controlsVisible) OverlayControls()
-            }
-        }
-    }
-
-    @Composable
-    private fun OverlayControls() {
-        val settings = Settings.shared
-        val lockedHint = stringResource(Res.string.floating_lyrics_locked_hint)
-
-        fun touched() {
-            controlsTouchedAt = SystemClock.uptimeMillis()
-        }
-
-        fun changeTextScale(step: Float) {
-            settings.floatingLyricsTextScale =
-                ((settings.floatingLyricsTextScale + step) * 10)
-                    .roundToInt()
-                    .div(10f)
-                    .coerceIn(FLOATING_LYRICS_MIN_TEXT_SCALE, FLOATING_LYRICS_MAX_TEXT_SCALE)
-            touched()
-        }
-        DisposableEffect(Unit) { onDispose { resizeHandleBounds = null } }
-        Row(
-            modifier =
-                Modifier
-                    .background(Color.Black.copy(alpha = CONTROLS_BACKGROUND_ALPHA), RoundedCornerShape(50))
-                    .padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ControlButton(
-                MetrolistIcons.Filled.Remove,
-                stringResource(Res.string.floating_lyrics_smaller_text),
-            ) { changeTextScale(-TEXT_SCALE_STEP) }
-            ControlButton(
-                MetrolistIcons.Filled.Add,
-                stringResource(Res.string.floating_lyrics_larger_text),
-            ) { changeTextScale(TEXT_SCALE_STEP) }
-            ControlButton(MetrolistIcons.Outlined.Settings, stringResource(Res.string.settings)) {
-                controlsVisible = false
-                runCatching { context.startActivity(MainActivity.settingsPageIntent(context, SettingsPageId.FLOATING_LYRICS)) }
-                    .onFailure { Timber.w(it, "Could not open floating lyrics settings") }
-            }
-            ControlButton(painterResource(R.drawable.ic_notification_lock), stringResource(Res.string.floating_lyrics_lock)) {
-                controlsVisible = false
-                settings.floatingLyricsClickThrough = true
-                Toast.makeText(context, lockedHint, Toast.LENGTH_LONG).show()
-            }
-            ControlButton(MetrolistIcons.Filled.Close, stringResource(Res.string.floating_lyrics_hide)) {
-                controlsVisible = false
-                settings.floatingLyricsEnabled = false
-            }
-            Icon(
-                imageVector = MetrolistIcons.Filled.DragHandle,
-                contentDescription = stringResource(Res.string.floating_lyrics_resize),
-                tint = Color.White,
-                modifier =
-                    Modifier
-                        .size(CONTROL_SIZE)
-                        .padding(10.dp)
-                        .rotate(90f)
-                        .onGloballyPositioned { coordinates ->
-                            val bounds = coordinates.boundsInRoot()
-                            resizeHandleBounds = Rect(bounds.left.toInt(), bounds.top.toInt(), bounds.right.toInt(), bounds.bottom.toInt())
+                        onHide = {
+                            controlsVisible = false
+                            Settings.shared.floatingLyricsEnabled = false
                         },
+                        modifier = Modifier.onGloballyPositioned { barBounds = it.boundsInRoot().toRect() },
+                    )
+                },
             )
         }
     }
 
-    @Composable
-    private fun ControlButton(
-        icon: ImageVector,
-        description: String,
-        onClick: () -> Unit,
-    ) = ControlButton(rememberVectorPainter(icon), description, onClick)
-
-    @Composable
-    private fun ControlButton(
-        icon: Painter,
-        description: String,
-        onClick: () -> Unit,
-    ) {
-        IconButton(onClick = onClick, modifier = Modifier.size(CONTROL_SIZE)) {
-            Icon(painter = icon, contentDescription = description, tint = Color.White, modifier = Modifier.size(20.dp))
-        }
-    }
+    private fun androidx.compose.ui.geometry.Rect.toRect() = Rect(left.toInt(), top.toInt(), right.toInt(), bottom.toInt())
 
     /**
-     * The window's root view. It sees each touch before Compose: a drag past the touch slop moves the window, or
-     * resizes it when it starts on the resize handle, and Compose gets a cancel; taps reach Compose untouched.
-     * Moves use screen coordinates, so the moving window does not skew the deltas.
+     * The window's root view. It sees each touch before Compose. A drag past the touch slop that starts on the
+     * control bar moves the window, and one on the resize grip resizes it; Compose then gets a cancel. Anything
+     * else reaches Compose untouched, so the lyrics scroll, and a tap on them toggles the controls. Moves use
+     * screen coordinates, so the moving window does not skew the deltas.
      */
     private inner class OverlayFrame(
         context: Context,
@@ -404,7 +363,7 @@ internal class FloatingLyricsHost(
             if (handleWindowGesture(event)) {
                 return true
             }
-            // Claim the stream even when Compose ignores the press, so a drag that starts on the lyrics still arrives.
+            // Claim the stream even when Compose ignores the press, so the tap that ends it still arrives.
             return super.dispatchTouchEvent(event) || event.actionMasked == MotionEvent.ACTION_DOWN
         }
 
@@ -412,15 +371,15 @@ internal class FloatingLyricsHost(
             val p = params ?: return false
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
-                    gesture =
-                        WindowGesture(
-                            touchX = event.rawX,
-                            touchY = event.rawY,
-                            windowX = p.x,
-                            windowY = p.y,
-                            width = width,
-                            resizing = resizeHandleBounds?.contains(event.x.toInt(), event.y.toInt()) == true,
-                        )
+                    val x = event.x.toInt()
+                    val y = event.y.toInt()
+                    val kind =
+                        when {
+                            controlsVisible && gripBounds?.contains(x, y) == true -> GestureKind.RESIZE
+                            controlsVisible && barBounds?.contains(x, y) == true -> GestureKind.MOVE
+                            else -> GestureKind.CONTENT
+                        }
+                    gesture = WindowGesture(event.rawX, event.rawY, p.x, p.y, width, height, kind)
                     return false
                 }
 
@@ -431,11 +390,16 @@ internal class FloatingLyricsHost(
                     if (!g.active) {
                         if (hypot(dx, dy) < touchSlop) return false
                         g.active = true
+                        if (g.kind == GestureKind.CONTENT) return false
                         val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
                         super.dispatchTouchEvent(cancel)
                         cancel.recycle()
                     }
-                    if (g.resizing) resizeTo(p, g, dx) else moveTo(p, g, dx, dy)
+                    when (g.kind) {
+                        GestureKind.CONTENT -> return false
+                        GestureKind.RESIZE -> resizeTo(p, g, dx, dy)
+                        GestureKind.MOVE -> moveTo(p, g, dx, dy)
+                    }
                     controlsTouchedAt = SystemClock.uptimeMillis()
                     return true
                 }
@@ -443,17 +407,27 @@ internal class FloatingLyricsHost(
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     val g = gesture ?: return false
                     gesture = null
+                    if (g.kind == GestureKind.CONTENT) {
+                        if (!g.active && event.actionMasked == MotionEvent.ACTION_UP) {
+                            controlsVisible = !controlsVisible
+                            controlsTouchedAt = SystemClock.uptimeMillis()
+                        }
+                        return false
+                    }
                     if (!g.active) return false
-                    if (g.resizing) {
-                        Settings.shared.floatingLyricsWidth = p.width
-                    } else if (p.x != g.windowX || p.y != g.windowY) {
-                        Settings.shared.floatingLyricsX = p.x
-                        Settings.shared.floatingLyricsY = p.y
+                    val settings = Settings.shared
+                    if (g.kind == GestureKind.RESIZE) {
+                        settings.floatingLyricsWidth = p.width
+                        settings.floatingLyricsHeight = p.height
+                    }
+                    if (p.x != g.windowX || p.y != g.windowY) {
+                        settings.floatingLyricsX = p.x
+                        settings.floatingLyricsY = p.y
                     }
                     return true
                 }
             }
-            return gesture?.active == true
+            return gesture?.let { it.active && it.kind != GestureKind.CONTENT } == true
         }
     }
 
@@ -469,8 +443,8 @@ internal class FloatingLyricsHost(
                 OverlayPoint(g.windowX + dx.roundToInt(), g.windowY + dy.roundToInt()),
                 screen.x,
                 screen.y,
-                view?.width ?: p.width,
-                view?.height ?: 0,
+                p.width,
+                p.height,
             )
         if (point.x != p.x || point.y != p.y) {
             p.x = point.x
@@ -479,22 +453,38 @@ internal class FloatingLyricsHost(
         }
     }
 
+    /** Grows the right edge, and the bottom or top edge depending on which corner holds the grip. */
     private fun resizeTo(
         p: WindowManager.LayoutParams,
         g: WindowGesture,
         dx: Float,
+        dy: Float,
     ) {
-        val minWidth = (MIN_WIDTH_DP * context.resources.displayMetrics.density).roundToInt()
-        val width = (g.width + dx.roundToInt()).coerceIn(minOf(minWidth, screenSize().x - p.x), screenSize().x - p.x)
-        if (width != p.width) {
+        val density = context.resources.displayMetrics.density
+        val minWidth = (MIN_WIDTH_DP * density).roundToInt()
+        val minHeight = (MIN_HEIGHT_DP * density).roundToInt()
+        val screen = screenSize()
+        val width = (g.width + dx.roundToInt()).coerceIn(minOf(minWidth, screen.x - p.x), screen.x - p.x)
+        val fromTop = !Settings.shared.floatingLyricsBarAtTop
+        val (y, height) =
+            if (fromTop) {
+                val bottom = g.windowY + g.height
+                val h = (g.height - dy.roundToInt()).coerceIn(minOf(minHeight, bottom), bottom)
+                bottom - h to h
+            } else {
+                g.windowY to (g.height + dy.roundToInt()).coerceIn(minOf(minHeight, screen.y - g.windowY), screen.y - g.windowY)
+            }
+        if (width != p.width || height != p.height || y != p.y) {
             p.width = width
+            p.height = height
+            p.y = y
             updateView()
         }
     }
 
     private fun applyLayout() {
         val p = params ?: return
-        if (gesture?.active == true) return
+        if (gesture?.let { it.active && it.kind != GestureKind.CONTENT } == true) return
         computeLayout(p)
         updateView()
     }
@@ -503,13 +493,22 @@ internal class FloatingLyricsHost(
         val settings = Settings.shared
         val density = context.resources.displayMetrics.density
         val screen = screenSize()
+        val margin = (MARGIN_DP * density).roundToInt()
         val width =
-            floatingLyricsWidth(
-                savedWidth = settings.floatingLyricsWidth,
-                screenWidth = screen.x,
-                margin = (MARGIN_DP * density).roundToInt(),
-                maxWidth = (MAX_DEFAULT_WIDTH_DP * density).roundToInt(),
-                minWidth = (MIN_WIDTH_DP * density).roundToInt(),
+            floatingLyricsSpan(
+                saved = settings.floatingLyricsWidth,
+                screen = screen.x,
+                margin = margin,
+                maxDefault = (DEFAULT_WIDTH_DP * density).roundToInt(),
+                min = (MIN_WIDTH_DP * density).roundToInt(),
+            )
+        val height =
+            floatingLyricsSpan(
+                saved = settings.floatingLyricsHeight,
+                screen = screen.y,
+                margin = margin,
+                maxDefault = (DEFAULT_HEIGHT_DP * density).roundToInt(),
+                min = (MIN_HEIGHT_DP * density).roundToInt(),
             )
         val position =
             floatingLyricsPosition(
@@ -518,9 +517,10 @@ internal class FloatingLyricsHost(
                 screenWidth = screen.x,
                 screenHeight = screen.y,
                 width = width,
-                height = view?.height ?: 0,
+                height = height,
             )
         p.width = width
+        p.height = height
         p.x = position.x
         p.y = position.y
         val clickThrough = settings.floatingLyricsClickThrough
@@ -551,24 +551,28 @@ internal class FloatingLyricsHost(
         if (v.isAttachedToWindow) runCatching { windowManager.updateViewLayout(v, p) }
     }
 
+    private enum class GestureKind { MOVE, RESIZE, CONTENT }
+
     private class WindowGesture(
         val touchX: Float,
         val touchY: Float,
         val windowX: Int,
         val windowY: Int,
         val width: Int,
-        val resizing: Boolean,
+        val height: Int,
+        val kind: GestureKind,
         var active: Boolean = false,
     )
 
     private companion object {
         const val MARGIN_DP = 16f
-        const val MAX_DEFAULT_WIDTH_DP = 480f
-        const val MIN_WIDTH_DP = 160f
+        const val DEFAULT_WIDTH_DP = 480f
+        const val DEFAULT_HEIGHT_DP = 200f
+        const val MIN_WIDTH_DP = 200f
+        const val MIN_HEIGHT_DP = 96f
         const val CONTROLS_TIMEOUT_MS = 6_000L
-        const val CONTROLS_BACKGROUND_ALPHA = 0.7f
-        const val TEXT_SCALE_STEP = 0.1f
-        val CONTROL_SIZE = 40.dp
+        const val PAUSE_HIDE_DELAY_MS = 1_500L
+        val GRIP_SIZE = 36.dp
         const val BASE_FLAGS =
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
                 WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN

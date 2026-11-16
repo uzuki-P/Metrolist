@@ -9,13 +9,26 @@ import com.metrolist.desktop.utils.LinuxWindowMove
 import com.metrolist.shared.utils.OsUtil
 import java.awt.Window
 
-// Adapted from Metrolist Desktop's platform/OverlayWindowSupport.kt. The floating lyrics window
-// only resizes its width, so it has two edges instead of eight.
+// Adapted from Metrolist Desktop's platform/OverlayWindowSupport.kt.
 
-/** Window edge grabbed for an interactive width resize. */
-internal enum class ResizeEdge {
-    LEFT,
-    RIGHT,
+/** Window edge or corner grabbed for an interactive resize, with its EWMH `_NET_WM_MOVERESIZE` direction. */
+internal enum class ResizeEdge(
+    val ewmhDirection: Int,
+) {
+    TOP_LEFT(0),
+    TOP(1),
+    TOP_RIGHT(2),
+    RIGHT(3),
+    BOTTOM_RIGHT(4),
+    BOTTOM(5),
+    BOTTOM_LEFT(6),
+    LEFT(7),
+    ;
+
+    val isLeft: Boolean get() = this == TOP_LEFT || this == LEFT || this == BOTTOM_LEFT
+    val isRight: Boolean get() = this == TOP_RIGHT || this == RIGHT || this == BOTTOM_RIGHT
+    val isTop: Boolean get() = this == TOP_LEFT || this == TOP || this == TOP_RIGHT
+    val isBottom: Boolean get() = this == BOTTOM_LEFT || this == BOTTOM || this == BOTTOM_RIGHT
 }
 
 /**

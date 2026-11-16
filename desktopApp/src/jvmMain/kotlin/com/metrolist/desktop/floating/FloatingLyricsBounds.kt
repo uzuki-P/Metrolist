@@ -11,6 +11,8 @@ import java.awt.Toolkit
 
 internal const val FLOATING_LYRICS_DEFAULT_WIDTH = 560
 internal const val FLOATING_LYRICS_MIN_WIDTH = 240
+internal const val FLOATING_LYRICS_DEFAULT_HEIGHT = 170
+internal const val FLOATING_LYRICS_MIN_HEIGHT = 96
 internal const val FLOATING_LYRICS_BOTTOM_MARGIN = 96
 
 /** Saved coordinates use -1 until the user moves or resizes the window. */
@@ -20,16 +22,17 @@ internal const val FLOATING_LYRICS_UNSET = -1
  * Where the floating lyrics window opens, in AWT screen coordinates. A saved position is kept
  * when it still overlaps one of [screens], moved inside that screen if it hangs off an edge.
  * With no saved position, or one on a screen that is gone, the window goes to the bottom center
- * of [primary] (the first screen when null).
+ * of [primary] (the first screen when null). An unset height opens at the default height.
  */
 internal fun resolveFloatingLyricsBounds(
     savedX: Int,
     savedY: Int,
     savedWidth: Int,
-    height: Int,
+    savedHeight: Int,
     screens: List<Rectangle>,
     primary: Rectangle? = null,
 ): Rectangle {
+    val height = (if (savedHeight > 0) savedHeight else FLOATING_LYRICS_DEFAULT_HEIGHT).coerceAtLeast(FLOATING_LYRICS_MIN_HEIGHT)
     val fallbackScreen = primary ?: screens.firstOrNull() ?: Rectangle(0, 0, FLOATING_LYRICS_DEFAULT_WIDTH, height)
     val requestedWidth = if (savedWidth > 0) savedWidth else FLOATING_LYRICS_DEFAULT_WIDTH
     val hasPosition = savedX != FLOATING_LYRICS_UNSET || savedY != FLOATING_LYRICS_UNSET

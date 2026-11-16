@@ -18,8 +18,6 @@ internal interface WindowMoveX11 : X11 {
 }
 
 internal object LinuxWindowMove {
-    const val RESIZE_LEFT = 3
-    const val RESIZE_RIGHT = 4
     const val MOVE = 8
 
     private val x11 by lazy { Native.load("X11", WindowMoveX11::class.java) }

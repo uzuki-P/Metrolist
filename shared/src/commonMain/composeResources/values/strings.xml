@@ -3180,17 +3180,21 @@
     <!-- Translators: Option or section label for target language in the AI lyrics translation settings. -->
     <string name="ai_target_language">Target language</string>
     <string name="floating_lyrics_title">Floating lyrics</string>
-    <string name="floating_lyrics_description">Show the current lyric line in a small window above other apps</string>
+    <string name="floating_lyrics_description">Show synced lyrics in a small window above other apps</string>
     <string name="floating_lyrics_enable">Show floating lyrics</string>
     <string name="floating_lyrics_click_through">Click-through</string>
     <string name="floating_lyrics_click_through_description">Touches pass through the window, which hides its controls.</string>
     <string name="floating_lyrics_click_through_description_desktop">Clicks pass through the window. Turn it off from the tray menu.</string>
     <string name="floating_lyrics_window">Window</string>
-    <string name="floating_lyrics_smaller_text">Smaller text</string>
-    <string name="floating_lyrics_larger_text">Larger text</string>
+    <string name="floating_lyrics_settings">Floating lyrics settings</string>
+    <string name="floating_lyrics_bar_at_top">Controls at the top</string>
+    <string name="floating_lyrics_bar_at_top_description">Show the control bar at the top of the window instead of the bottom.</string>
+    <string name="floating_lyrics_hide_when_paused">Hide while paused</string>
+    <string name="floating_lyrics_hide_when_paused_description">The window comes back when playback resumes.</string>
+    <string name="floating_lyrics_reset">Reset size and position</string>
+    <string name="floating_lyrics_reset_description">Put the window back in its default place and size.</string>
     <string name="floating_lyrics_resize">Drag to resize</string>
     <string name="floating_lyrics_locked_hint">Floating lyrics locked. Turn off click-through in floating lyrics settings to unlock.</string>
-    <string name="floating_lyrics_next_line">Show the next line</string>
     <string name="floating_lyrics_text_size">Text size</string>
     <string name="floating_lyrics_background">Background opacity</string>
     <string name="floating_lyrics_no_lyrics">No synced lyrics</string>

@@ -530,10 +530,27 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                     checked = settings.floatingLyricsClickThrough,
                 ) { settings.floatingLyricsClickThrough = it }
                 switch(
-                    id = "floatingLyricsNextLine",
-                    title = stringResource(Res.string.floating_lyrics_next_line),
-                    checked = settings.floatingLyricsShowNextLine,
-                ) { settings.floatingLyricsShowNextLine = it }
+                    id = "floatingLyricsHideWhenPaused",
+                    title = stringResource(Res.string.floating_lyrics_hide_when_paused),
+                    description = stringResource(Res.string.floating_lyrics_hide_when_paused_description),
+                    checked = settings.floatingLyricsHideWhenPaused,
+                ) { settings.floatingLyricsHideWhenPaused = it }
+                switch(
+                    id = "floatingLyricsBarAtTop",
+                    title = stringResource(Res.string.floating_lyrics_bar_at_top),
+                    description = stringResource(Res.string.floating_lyrics_bar_at_top_description),
+                    checked = settings.floatingLyricsBarAtTop,
+                ) { settings.floatingLyricsBarAtTop = it }
+                action(
+                    id = "floatingLyricsReset",
+                    title = stringResource(Res.string.floating_lyrics_reset),
+                    description = stringResource(Res.string.floating_lyrics_reset_description),
+                ) {
+                    settings.floatingLyricsX = -1
+                    settings.floatingLyricsY = -1
+                    settings.floatingLyricsWidth = -1
+                    settings.floatingLyricsHeight = -1
+                }
             }
             group("floatingLyricsAppearance", stringResource(Res.string.appearance_title), enabled = enabled) {
                 slider(
