@@ -138,6 +138,7 @@ import com.metrolist.desktop.utils.DesktopSingleInstance
 import com.metrolist.desktop.utils.DesktopStartup
 import com.metrolist.desktop.utils.DesktopUrlHandler
 import com.metrolist.desktop.utils.NativeMemoryTrimmer
+import com.metrolist.desktop.utils.STOP_OMARCHY_URL
 import com.metrolist.desktop.utils.SentryManager
 import com.metrolist.desktop.utils.SkiaCacheCleaner
 import com.metrolist.desktop.utils.SystemMediaManager
@@ -148,6 +149,8 @@ import com.metrolist.desktop.utils.configureDesktopJvmErrorFile
 import com.metrolist.desktop.utils.configureLinuxWebKitRenderer
 import com.metrolist.desktop.utils.desktopRenderApiOverride
 import com.metrolist.desktop.utils.isDesktopPlatformSupported
+import com.metrolist.desktop.utils.isOmarchy
+import com.metrolist.desktop.utils.openStopOmarchy
 import com.metrolist.desktop.web.DesktopWebViewError
 import com.metrolist.desktop.window.IconResources
 import com.metrolist.desktop.window.LinuxWindowFrame
@@ -169,13 +172,17 @@ import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.action_login
 import com.metrolist.shared.generated.resources.action_not_now
 import com.metrolist.shared.generated.resources.app_name
+import com.metrolist.shared.generated.resources.close
 import com.metrolist.shared.generated.resources.copy
 import com.metrolist.shared.generated.resources.desktop_display_unavailable
+import com.metrolist.shared.generated.resources.desktop_omarchy_unsupported
 import com.metrolist.shared.generated.resources.desktop_platform_unsupported
+import com.metrolist.shared.generated.resources.learn_more
 import com.metrolist.shared.generated.resources.liked_songs
 import com.metrolist.shared.generated.resources.ok
 import com.metrolist.shared.generated.resources.playback_error
 import com.metrolist.shared.generated.resources.technical_information
+import com.metrolist.shared.generated.resources.window_title_now_playing
 import com.metrolist.shared.generated.resources.youtube_session_expired_message
 import com.metrolist.shared.generated.resources.youtube_session_expired_title
 import com.metrolist.shared.scrobble.ScrobbleSessions
@@ -186,6 +193,7 @@ import com.metrolist.shared.settings.Settings
 import com.metrolist.shared.settings.defaultOpenTabRoot
 import com.metrolist.shared.settings.defaultOpenTabScreen
 import com.metrolist.shared.settings.desktopDefaultOpenTab
+import com.metrolist.shared.settings.displayName
 import com.metrolist.shared.settings.flushDesktopCredentialWarnings
 import com.metrolist.shared.settings.flushDesktopSettings
 import com.metrolist.shared.settings.recoverDesktopCredentials
@@ -241,6 +249,7 @@ import java.awt.Desktop
 import java.awt.EventQueue
 import java.awt.Frame
 import java.awt.GraphicsEnvironment
+import java.awt.Toolkit
 import java.awt.desktop.AppReopenedListener
 import java.awt.event.WindowAdapter
 import java.awt.event.WindowEvent
@@ -667,6 +676,8 @@ private fun configureLinuxWindowIdentity() {
     if (!OsUtil.isLinux) return
     System.setProperty("awt.app.id", "Metrolist")
     runCatching {
+        // XToolkit's constructor names the X11 class after the creating thread, so create it here and then rename it.
+        Toolkit.getDefaultToolkit()
         val xToolkit = Class.forName("sun.awt.X11.XToolkit")
         xToolkit.getDeclaredField("awtAppClassName").apply {
             isAccessible = true
@@ -760,6 +771,8 @@ fun main() {
 }
 
 fun main(args: Array<String>) {
+    // The JDK reads this once when its default proxy selector initializes.
+    if (OsUtil.isWindows) System.getProperties().putIfAbsent("java.net.useSystemProxies", "true")
     runCatching { System.getProperty("metrolist.cds.cache")?.let { File(it).mkdirs() } }
     startup.trace("main")
     val recoveryIndex = args.indexOf(DesktopCrashRecovery.ARGUMENT)
@@ -789,7 +802,32 @@ private fun exitWithStartupMessage(message: String): Nothing {
     exitProcess(1)
 }
 
+private fun exitOnOmarchy(): Nothing {
+    val message = runBlocking { getString(Res.string.desktop_omarchy_unsupported) }
+    System.err.println("$message $STOP_OMARCHY_URL")
+    if (!GraphicsEnvironment.isHeadless()) {
+        runCatching {
+            val learnMore = runBlocking { getString(Res.string.learn_more) }
+            val choice =
+                JOptionPane.showOptionDialog(
+                    null,
+                    message,
+                    runBlocking { getString(Res.string.app_name) },
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.ERROR_MESSAGE,
+                    null,
+                    arrayOf(learnMore, runBlocking { getString(Res.string.close) }),
+                    learnMore,
+                )
+            if (choice == 0) openStopOmarchy()
+        }
+    }
+    DesktopSingleInstance.release()
+    exitProcess(1)
+}
+
 private fun runDesktopApp(args: Array<String>) {
+    if (OsUtil.isLinux && isOmarchy()) exitOnOmarchy()
     if (!isDesktopPlatformSupported()) {
         exitWithStartupMessage(runBlocking { getString(Res.string.desktop_platform_unsupported) })
     }
@@ -819,6 +857,9 @@ private fun runDesktopApp(args: Array<String>) {
         property = System.getProperty("skiko.renderApi"),
     )?.let { System.setProperty("skiko.renderApi", it) }
     if (OsUtil.isMac) {
+        System.setProperty("apple.awt.enableTemplateImages", "true")
+        // Without this AppKit keeps the Aqua (light) title bar even in Dark Mode.
+        System.setProperty("apple.awt.application.appearance", "system")
         if (System.getProperty("skiko.renderApi") == null && System.getenv("SKIKO_RENDER_API") == null) {
             System.setProperty("skiko.renderApi", "METAL")
         }
@@ -1227,9 +1268,15 @@ private fun runDesktopApp(args: Array<String>) {
             }
         }
 
+        val appTitle = if (BuildConfig.DEBUG) "Metrolist Debug" else "Metrolist"
+        val windowTitle =
+            PlayerState.currentTrack?.takeIf { it.title.isNotBlank() }?.let { track ->
+                val artists = track.artists.joinToString { it.displayName }
+                if (artists.isBlank()) track.title else stringResource(Res.string.window_title_now_playing, track.title, artists)
+            } ?: appTitle
         Window(
             onCloseRequest = { minimizeToTrayOrClose() },
-            title = if (BuildConfig.DEBUG) "Metrolist Debug" else "Metrolist",
+            title = windowTitle,
             state = windowState,
             undecorated = isLinux && !useSystemWindowFrame,
             transparent = false,
@@ -1561,6 +1608,11 @@ private fun runDesktopApp(args: Array<String>) {
 
         // Outside the main window, so it keeps fetching and showing lyrics while that is in the tray.
         if (integrationsReady) FloatingLyricsWindow()
-        if (integrationsReady) ComposeTrayManager.TrayIcon()
+        // System tray icon (stock Compose Tray on macOS, ComposeNativeTray on Linux/Windows)
+        if (integrationsReady) {
+            with(ComposeTrayManager) {
+                TrayIcon()
+            }
+        }
     }
 }

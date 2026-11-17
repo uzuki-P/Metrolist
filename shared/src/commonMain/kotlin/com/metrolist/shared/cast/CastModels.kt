@@ -31,12 +31,15 @@ enum class CastError {
     UNSUPPORTED_STREAM,
     CONNECTION_FAILED,
     PLAYBACK_FAILED,
+    STREAM_PORT_UNAVAILABLE,
+    STREAM_UNREACHABLE,
 }
 
 data class CastState(
     val status: CastConnectionStatus = CastConnectionStatus.DISCONNECTED,
     val device: CastDevice? = null,
     val isPlaying: Boolean = false,
+    val isBuffering: Boolean = false,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
     val volume: Float = 1f,

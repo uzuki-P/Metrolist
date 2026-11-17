@@ -360,6 +360,7 @@ fun SettingsOverlay(colorScheme: ColorScheme) {
                                 timingOffsetMs = LyricsState.currentLyricsOffsetMs,
                                 isPlaying = PlayerState.isPlaying,
                                 isCasting = castState.isConnected,
+                                isBuffering = castState.isBuffering,
                                 lyricsRetimed = LyricsState.mvLyricsRetimed,
                                 onSeek = PlayerState::seekToPosition,
                             )
@@ -404,6 +405,7 @@ fun SettingsOverlay(colorScheme: ColorScheme) {
                                 SettingsChangeEffect.AUDIO,
                                 SettingsChangeEffect.CONTENT,
                                 SettingsChangeEffect.AUTO_DOWNLOAD_ON_LIKE,
+                                SettingsChangeEffect.AUTO_DOWNLOAD_SAVED_COLLECTIONS,
                                 SettingsChangeEffect.PLAYBACK_SPEED,
                                 SettingsChangeEffect.PLAYBACK_PITCH,
                                 -> {

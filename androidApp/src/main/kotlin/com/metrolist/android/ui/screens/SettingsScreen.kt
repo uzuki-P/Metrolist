@@ -239,15 +239,7 @@ fun SettingsScreen(
                 title = stringResource(Res.string.app_font_choose),
                 description = if (hasCustomFont) SharedPreferences.shared.androidCustomFontName else importCustomFontLabel,
                 onClick = {
-                    fontPicker.launch(
-                        arrayOf(
-                            "font/ttf",
-                            "font/otf",
-                            "application/x-font-ttf",
-                            "application/x-font-opentype",
-                            "application/octet-stream",
-                        ),
-                    )
+                    fontPicker.launch(arrayOf("*/*"))
                 },
             ),
         )
@@ -391,6 +383,7 @@ fun SettingsScreen(
                             viewModel = viewModel,
                             modifier = modifier,
                             isCasting = castState?.isConnected == true,
+                            isBuffering = castState?.isBuffering == true,
                         )
                     },
                     rememberMetroEqProfilePicker = { onPicked -> rememberMetroEqProfilePicker(onPicked) },
@@ -566,6 +559,14 @@ fun SettingsScreen(
                                     requireDownloadNotifications { SharedPreferences.shared.autoDownloadOnLike = true }
                                 } else {
                                     SharedPreferences.shared.autoDownloadOnLike = false
+                                }
+                            }
+
+                            SettingsChangeEffect.AUTO_DOWNLOAD_SAVED_COLLECTIONS -> {
+                                if (value == true) {
+                                    requireDownloadNotifications { SharedPreferences.shared.autoDownloadSavedCollections = true }
+                                } else {
+                                    SharedPreferences.shared.autoDownloadSavedCollections = false
                                 }
                             }
 

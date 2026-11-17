@@ -16,13 +16,7 @@
       "glob": "composeResources"
     },
     {
-      "glob": "romanization/**"
-    },
-    {
       "glob": "com/ibm/icu/impl/data/**"
-    },
-    {
-      "glob": "com/atilika/kuromoji/**"
     },
     {
       "module": "java.desktop",
@@ -593,6 +587,15 @@
       "fields": [
         {
           "name": "pData"
+        }
+      ]
+    },
+    {
+      "type": "com.ibm.icu.text.NumberFormatServiceShim",
+      "methods": [
+        {
+          "name": "<init>",
+          "parameterTypes": []
         }
       ]
     }
