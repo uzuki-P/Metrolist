@@ -24,18 +24,35 @@ import androidx.compose.ui.unit.dp
 import com.metrolist.shared.api.lyrics.AiProviderPresets
 import com.metrolist.shared.generated.resources.*
 import com.metrolist.shared.generated.resources.floating_lyrics_active_line_position
+import com.metrolist.shared.generated.resources.floating_lyrics_active_line_zoom
+import com.metrolist.shared.generated.resources.floating_lyrics_active_line_zoom_description
+import com.metrolist.shared.generated.resources.floating_lyrics_animation
+import com.metrolist.shared.generated.resources.floating_lyrics_line_spacing
 import com.metrolist.shared.generated.resources.floating_lyrics_romanization_size
 import com.metrolist.shared.generated.resources.floating_lyrics_text_outline
 import com.metrolist.shared.generated.resources.floating_lyrics_text_outline_description
 import com.metrolist.shared.generated.resources.floating_lyrics_translation_size
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_description
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_glow
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_lift
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_none
+import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_sweep
 import com.metrolist.shared.settings.LyricsTextSizeRange
 import com.metrolist.shared.settings.PlayerBackgroundStyle
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_ACTIVE_LINE_POSITION
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_BACKGROUND_OPACITY
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_LINE_SPACING_DP
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_ROMANIZATION_SP
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_TEXT_SP
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_DEFAULT_TRANSLATION_SP
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_LINE_SPACING_DP_RANGE
 import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION
-import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_TEXT_SCALE
 import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION
-import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_TEXT_SCALE
 import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_SUB_TEXT_SP_RANGE
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_TEXT_SP_RANGE
+import com.metrolist.shared.ui.components.lyrics.FloatingLyricsWordAnimation
 import com.metrolist.shared.ui.components.lyrics.LyricsOffsetEditor
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import org.jetbrains.compose.resources.stringResource
@@ -541,41 +558,49 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                 }
             }
             group("floatingLyricsAppearance", stringResource(Res.string.appearance_title), enabled = enabled) {
-                slider(
-                    id = "floatingLyricsTextScale",
+                sizeSlider(
+                    id = "floatingLyricsTextSize",
                     title = stringResource(Res.string.floating_lyrics_text_size),
-                    valueLabel = "${(settings.floatingLyricsTextScale * 100).roundToInt()}$percent",
-                    value = settings.floatingLyricsTextScale,
-                    range = FLOATING_LYRICS_MIN_TEXT_SCALE..FLOATING_LYRICS_MAX_TEXT_SCALE,
-                    steps = 13,
-                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
-                ) { settings.floatingLyricsTextScale = it }
-                slider(
+                    value = settings.floatingLyricsTextSize,
+                    defaultValue = FLOATING_LYRICS_DEFAULT_TEXT_SP,
+                    range = FLOATING_LYRICS_TEXT_SP_RANGE,
+                    enabled = enabled,
+                ) { settings.floatingLyricsTextSize = it }
+                sizeSlider(
                     id = "floatingLyricsRomanizationTextSize",
                     title = stringResource(Res.string.floating_lyrics_romanization_size),
-                    valueLabel = "${settings.floatingLyricsRomanizationTextSize}sp",
-                    value = settings.floatingLyricsRomanizationTextSize.toFloat(),
-                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first.toFloat()..FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last.toFloat(),
-                    steps = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last - FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first - 1,
-                    valueFormatter = { "${it.roundToInt()}sp" },
-                ) { settings.floatingLyricsRomanizationTextSize = it.roundToInt() }
-                slider(
+                    value = settings.floatingLyricsRomanizationTextSize,
+                    defaultValue = FLOATING_LYRICS_DEFAULT_ROMANIZATION_SP,
+                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE,
+                    enabled = enabled,
+                ) { settings.floatingLyricsRomanizationTextSize = it }
+                sizeSlider(
                     id = "floatingLyricsTranslationTextSize",
                     title = stringResource(Res.string.floating_lyrics_translation_size),
-                    valueLabel = "${settings.floatingLyricsTranslationTextSize}sp",
-                    value = settings.floatingLyricsTranslationTextSize.toFloat(),
-                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first.toFloat()..FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last.toFloat(),
-                    steps = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last - FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first - 1,
-                    valueFormatter = { "${it.roundToInt()}sp" },
-                ) { settings.floatingLyricsTranslationTextSize = it.roundToInt() }
-                slider(
+                    value = settings.floatingLyricsTranslationTextSize,
+                    defaultValue = FLOATING_LYRICS_DEFAULT_TRANSLATION_SP,
+                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE,
+                    enabled = enabled,
+                ) { settings.floatingLyricsTranslationTextSize = it }
+                inlineSlider(
+                    id = "floatingLyricsLineSpacing",
+                    title = stringResource(Res.string.floating_lyrics_line_spacing),
+                    valueLabel = "${settings.floatingLyricsLineSpacing}dp",
+                    value = settings.floatingLyricsLineSpacing.toFloat(),
+                    defaultValue = FLOATING_LYRICS_DEFAULT_LINE_SPACING_DP.toFloat(),
+                    range = FLOATING_LYRICS_LINE_SPACING_DP_RANGE.first.toFloat()..FLOATING_LYRICS_LINE_SPACING_DP_RANGE.last.toFloat(),
+                    steps = (FLOATING_LYRICS_LINE_SPACING_DP_RANGE.last - FLOATING_LYRICS_LINE_SPACING_DP_RANGE.first) / 2 - 1,
+                    enabled = enabled,
+                ) { settings.floatingLyricsLineSpacing = it.roundToInt() }
+                inlineSlider(
                     id = "floatingLyricsActiveLinePosition",
                     title = stringResource(Res.string.floating_lyrics_active_line_position),
                     valueLabel = "${(settings.floatingLyricsActiveLinePosition * 100).roundToInt()}$percent",
                     value = settings.floatingLyricsActiveLinePosition,
+                    defaultValue = FLOATING_LYRICS_DEFAULT_ACTIVE_LINE_POSITION,
                     range = FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION..FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION,
-                    steps = 7,
-                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
+                    steps = 8,
+                    enabled = enabled,
                 ) { settings.floatingLyricsActiveLinePosition = it }
                 switch(
                     id = "floatingLyricsTextOutline",
@@ -583,15 +608,52 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                     description = stringResource(Res.string.floating_lyrics_text_outline_description),
                     checked = settings.floatingLyricsTextOutline,
                 ) { settings.floatingLyricsTextOutline = it }
-                slider(
+                inlineSlider(
                     id = "floatingLyricsBackground",
                     title = stringResource(Res.string.floating_lyrics_background),
                     valueLabel = "${(settings.floatingLyricsBackgroundOpacity * 100).roundToInt()}$percent",
                     value = settings.floatingLyricsBackgroundOpacity,
+                    defaultValue = FLOATING_LYRICS_DEFAULT_BACKGROUND_OPACITY,
                     range = 0f..1f,
                     steps = 19,
-                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
+                    enabled = enabled,
                 ) { settings.floatingLyricsBackgroundOpacity = it }
+            }
+            group("floatingLyricsAnimation", stringResource(Res.string.floating_lyrics_animation), enabled = enabled) {
+                val wordAnimations =
+                    listOf(
+                        SettingsChoice(
+                            FloatingLyricsWordAnimation.SWEEP.name,
+                            stringResource(Res.string.floating_lyrics_word_animation_sweep),
+                        ),
+                        SettingsChoice(
+                            FloatingLyricsWordAnimation.GLOW.name,
+                            stringResource(Res.string.floating_lyrics_word_animation_glow),
+                        ),
+                        SettingsChoice(
+                            FloatingLyricsWordAnimation.LIFT.name,
+                            stringResource(Res.string.floating_lyrics_word_animation_lift),
+                        ),
+                        SettingsChoice(
+                            FloatingLyricsWordAnimation.NONE.name,
+                            stringResource(Res.string.floating_lyrics_word_animation_none),
+                        ),
+                    )
+                val selectedWordAnimation = FloatingLyricsWordAnimation.from(settings.floatingLyricsWordAnimation).name
+                choice(
+                    id = "floatingLyricsWordAnimation",
+                    title = stringResource(Res.string.floating_lyrics_word_animation),
+                    description = stringResource(Res.string.floating_lyrics_word_animation_description),
+                    valueLabel = wordAnimations.first { it.id == selectedWordAnimation }.label,
+                    choices = wordAnimations,
+                    selectedChoiceId = selectedWordAnimation,
+                ) { settings.floatingLyricsWordAnimation = it }
+                switch(
+                    id = "floatingLyricsActiveLineZoom",
+                    title = stringResource(Res.string.floating_lyrics_active_line_zoom),
+                    description = stringResource(Res.string.floating_lyrics_active_line_zoom_description),
+                    checked = settings.floatingLyricsActiveLineZoom,
+                ) { settings.floatingLyricsActiveLineZoom = it }
             }
         }
     }
@@ -722,4 +784,25 @@ private fun skippedLanguageChoices(
 ): List<SettingsChoice> {
     val skipped = value.split(',').filter(String::isNotBlank).toSet()
     return choices.filter { it.id != "device" && it.id in skipped }
+}
+
+private fun SettingsGroupRegistryBuilder.sizeSlider(
+    id: String,
+    title: String,
+    value: Int,
+    defaultValue: Int,
+    range: IntRange,
+    enabled: Boolean,
+    onValueChange: (Int) -> Unit,
+) {
+    inlineSlider(
+        id = id,
+        title = title,
+        valueLabel = "${value}sp",
+        value = value.toFloat(),
+        defaultValue = defaultValue.toFloat(),
+        range = range.first.toFloat()..range.last.toFloat(),
+        steps = range.last - range.first - 1,
+        enabled = enabled,
+    ) { onValueChange(it.roundToInt()) }
 }

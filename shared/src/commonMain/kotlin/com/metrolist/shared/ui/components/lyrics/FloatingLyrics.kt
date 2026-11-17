@@ -82,7 +82,7 @@ fun FloatingLyricsContent(
 ) {
     val settings = Settings.shared
     val noLyrics = stringResource(Res.string.floating_lyrics_no_lyrics)
-    val scale = settings.floatingLyricsTextScale.coerceIn(FLOATING_LYRICS_MIN_TEXT_SCALE, FLOATING_LYRICS_MAX_TEXT_SCALE)
+    val textColor = resolveLyricsTextColor(Color.White)
     Box(
         modifier =
             modifier
@@ -94,7 +94,7 @@ fun FloatingLyricsContent(
             Text(
                 text = noLyrics,
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                color = Color.White.copy(alpha = 0.8f),
+                color = textColor.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(16.dp),
             )
@@ -109,14 +109,17 @@ fun FloatingLyricsContent(
                 onSeek = onSeek,
                 style =
                     FloatingLyricsStyle(
-                        mainSp = FLOATING_LYRICS_TEXT_SP * scale,
-                        romanizationSp = settings.floatingLyricsRomanizationTextSize * scale,
-                        translationSp = settings.floatingLyricsTranslationTextSize * scale,
+                        mainSp = settings.floatingLyricsTextSize.coerceIn(FLOATING_LYRICS_TEXT_SP_RANGE).toFloat(),
+                        romanizationSp = settings.floatingLyricsRomanizationTextSize.coerceIn(FLOATING_LYRICS_SUB_TEXT_SP_RANGE).toFloat(),
+                        translationSp = settings.floatingLyricsTranslationTextSize.coerceIn(FLOATING_LYRICS_SUB_TEXT_SP_RANGE).toFloat(),
+                        lineSpacingDp = settings.floatingLyricsLineSpacing.coerceIn(FLOATING_LYRICS_LINE_SPACING_DP_RANGE).toFloat(),
                         activeLinePosition =
                             settings.floatingLyricsActiveLinePosition
                                 .coerceIn(FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION, FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION),
                         outline = settings.floatingLyricsTextOutline,
-                        textColor = Color.White,
+                        textColor = textColor,
+                        wordAnimation = FloatingLyricsWordAnimation.from(settings.floatingLyricsWordAnimation),
+                        activeLineZoom = settings.floatingLyricsActiveLineZoom,
                     ),
                 modifier = Modifier.fillMaxSize(),
             )
@@ -257,8 +260,5 @@ fun FloatingLyricsResizeGrip(
 }
 
 val FLOATING_LYRICS_SHAPE = RoundedCornerShape(20.dp)
-const val FLOATING_LYRICS_MIN_TEXT_SCALE = 0.6f
-const val FLOATING_LYRICS_MAX_TEXT_SCALE = 2f
-private const val FLOATING_LYRICS_TEXT_SP = 20f
 private const val BAR_BACKGROUND_ALPHA = 0.75f
 private const val BAR_FADE_MS = 150

@@ -544,12 +544,17 @@ class Settings(
     var respectAgentPositioning by preference(true)
 
     var floatingLyricsEnabled by preference(false)
-    var floatingLyricsTextScale by preference(1f)
     var floatingLyricsBackgroundOpacity by preference(0.45f)
 
-    /** Romanization and translation sizes at a text scale of 100%, in sp. */
+    /** Lyrics, romanization and translation sizes in sp, and the gap between lines in dp. */
+    var floatingLyricsTextSize by preference(20)
     var floatingLyricsRomanizationTextSize by preference(11)
     var floatingLyricsTranslationTextSize by preference(13)
+    var floatingLyricsLineSpacing by preference(14)
+
+    /** The name of a FloatingLyricsWordAnimation. */
+    var floatingLyricsWordAnimation by preference("SWEEP")
+    var floatingLyricsActiveLineZoom by preference(true)
     var floatingLyricsTextOutline by preference(true)
 
     /** Where the active line sits in the window, as a share of its height from the top. */

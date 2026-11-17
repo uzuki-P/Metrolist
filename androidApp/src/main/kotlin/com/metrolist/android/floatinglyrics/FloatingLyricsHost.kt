@@ -29,8 +29,6 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -58,7 +56,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.metrolist.android.MainActivity
-import com.metrolist.android.ui.theme.getAppTypography
+import com.metrolist.android.ui.theme.MetrolistTheme
 import com.metrolist.shared.generated.resources.Res
 import com.metrolist.shared.generated.resources.floating_lyrics_locked_hint
 import com.metrolist.shared.settings.Settings
@@ -67,6 +65,8 @@ import com.metrolist.shared.ui.components.lyrics.FloatingLyricsContent
 import com.metrolist.shared.ui.components.lyrics.FloatingLyricsFrame
 import com.metrolist.shared.ui.components.lyrics.FloatingLyricsResizeGrip
 import com.metrolist.shared.ui.settings.SettingsPageId
+import com.metrolist.shared.ui.theme.rememberArtworkSeedColor
+import com.metrolist.shared.ui.theme.resolveThemeSeedColor
 import com.metrolist.shared.viewmodels.PlayerViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -294,7 +294,21 @@ internal class FloatingLyricsHost(
         }
 
         val barAtTop = Settings.shared.floatingLyricsBarAtTop
-        MaterialTheme(colorScheme = darkColorScheme(), typography = getAppTypography()) {
+        // The app's theme on a dark scheme, so the lyrics take the same palette color as the player's lyrics.
+        val materialYou = Settings.shared.materialYouEnabled
+        val artworkColors = materialYou && Settings.shared.dynamicTheme
+        val artworkSeed = rememberArtworkSeedColor(state.currentSong?.thumbnail?.takeIf { artworkColors })
+        MetrolistTheme(
+            darkTheme = true,
+            dynamicColor = materialYou && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && artworkSeed == null,
+            themeColor =
+                resolveThemeSeedColor(
+                    materialYouEnabled = materialYou,
+                    songArtworkColorsEnabled = artworkColors,
+                    selectedThemeColor = Settings.shared.selectedThemeColor,
+                    artworkSeedColor = artworkSeed,
+                ),
+        ) {
             FloatingLyricsFrame(
                 barVisible = controlsVisible,
                 modifier = Modifier.fillMaxSize(),

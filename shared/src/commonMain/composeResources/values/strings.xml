@@ -3233,6 +3233,16 @@
     <string name="floating_lyrics_text_outline">Text outline</string>
     <string name="floating_lyrics_text_outline_description">Draw a dark outline around the lyrics so they stay readable on any background.</string>
     <string name="floating_lyrics_active_line_position">Active line position</string>
+    <string name="floating_lyrics_line_spacing">Line spacing</string>
+    <string name="floating_lyrics_animation">Animation</string>
+    <string name="floating_lyrics_word_animation">Word highlight</string>
+    <string name="floating_lyrics_word_animation_description">How sung words light up in the active line and its romanization.</string>
+    <string name="floating_lyrics_word_animation_sweep">Sweep</string>
+    <string name="floating_lyrics_word_animation_glow">Sweep and glow</string>
+    <string name="floating_lyrics_word_animation_lift">Sweep and lift</string>
+    <string name="floating_lyrics_word_animation_none">Whole line</string>
+    <string name="floating_lyrics_active_line_zoom">Enlarge the active line</string>
+    <string name="floating_lyrics_active_line_zoom_description">The line being sung grows slightly and settles back when the next one starts.</string>
     <string name="floating_lyrics_no_lyrics">No synced lyrics</string>
     <string name="floating_lyrics_show">Show floating lyrics</string>
     <string name="floating_lyrics_hide">Hide floating lyrics</string>
