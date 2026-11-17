@@ -23,11 +23,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.api.lyrics.AiProviderPresets
 import com.metrolist.shared.generated.resources.*
+import com.metrolist.shared.generated.resources.floating_lyrics_active_line_position
+import com.metrolist.shared.generated.resources.floating_lyrics_romanization_size
+import com.metrolist.shared.generated.resources.floating_lyrics_text_outline
+import com.metrolist.shared.generated.resources.floating_lyrics_text_outline_description
+import com.metrolist.shared.generated.resources.floating_lyrics_translation_size
 import com.metrolist.shared.settings.LyricsTextSizeRange
 import com.metrolist.shared.settings.PlayerBackgroundStyle
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION
 import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MAX_TEXT_SCALE
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION
 import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_MIN_TEXT_SCALE
+import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_SUB_TEXT_SP_RANGE
 import com.metrolist.shared.ui.components.lyrics.LyricsOffsetEditor
 import com.metrolist.shared.ui.icons.MetrolistIcons
 import org.jetbrains.compose.resources.stringResource
@@ -542,6 +550,39 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                     steps = 13,
                     valueFormatter = { "${(it * 100).roundToInt()}$percent" },
                 ) { settings.floatingLyricsTextScale = it }
+                slider(
+                    id = "floatingLyricsRomanizationTextSize",
+                    title = stringResource(Res.string.floating_lyrics_romanization_size),
+                    valueLabel = "${settings.floatingLyricsRomanizationTextSize}sp",
+                    value = settings.floatingLyricsRomanizationTextSize.toFloat(),
+                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first.toFloat()..FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last.toFloat(),
+                    steps = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last - FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first - 1,
+                    valueFormatter = { "${it.roundToInt()}sp" },
+                ) { settings.floatingLyricsRomanizationTextSize = it.roundToInt() }
+                slider(
+                    id = "floatingLyricsTranslationTextSize",
+                    title = stringResource(Res.string.floating_lyrics_translation_size),
+                    valueLabel = "${settings.floatingLyricsTranslationTextSize}sp",
+                    value = settings.floatingLyricsTranslationTextSize.toFloat(),
+                    range = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first.toFloat()..FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last.toFloat(),
+                    steps = FLOATING_LYRICS_SUB_TEXT_SP_RANGE.last - FLOATING_LYRICS_SUB_TEXT_SP_RANGE.first - 1,
+                    valueFormatter = { "${it.roundToInt()}sp" },
+                ) { settings.floatingLyricsTranslationTextSize = it.roundToInt() }
+                slider(
+                    id = "floatingLyricsActiveLinePosition",
+                    title = stringResource(Res.string.floating_lyrics_active_line_position),
+                    valueLabel = "${(settings.floatingLyricsActiveLinePosition * 100).roundToInt()}$percent",
+                    value = settings.floatingLyricsActiveLinePosition,
+                    range = FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION..FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION,
+                    steps = 7,
+                    valueFormatter = { "${(it * 100).roundToInt()}$percent" },
+                ) { settings.floatingLyricsActiveLinePosition = it }
+                switch(
+                    id = "floatingLyricsTextOutline",
+                    title = stringResource(Res.string.floating_lyrics_text_outline),
+                    description = stringResource(Res.string.floating_lyrics_text_outline_description),
+                    checked = settings.floatingLyricsTextOutline,
+                ) { settings.floatingLyricsTextOutline = it }
                 slider(
                     id = "floatingLyricsBackground",
                     title = stringResource(Res.string.floating_lyrics_background),

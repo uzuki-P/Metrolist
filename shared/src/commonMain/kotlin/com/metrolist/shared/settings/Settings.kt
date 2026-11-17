@@ -546,6 +546,14 @@ class Settings(
     var floatingLyricsEnabled by preference(false)
     var floatingLyricsTextScale by preference(1f)
     var floatingLyricsBackgroundOpacity by preference(0.45f)
+
+    /** Romanization and translation sizes at a text scale of 100%, in sp. */
+    var floatingLyricsRomanizationTextSize by preference(11)
+    var floatingLyricsTranslationTextSize by preference(13)
+    var floatingLyricsTextOutline by preference(true)
+
+    /** Where the active line sits in the window, as a share of its height from the top. */
+    var floatingLyricsActiveLinePosition by preference(0.2f)
     var floatingLyricsClickThrough by preference(false)
     var floatingLyricsBarAtTop by preference(false)
     var floatingLyricsHideWhenPaused by preference(false)

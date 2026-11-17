@@ -279,7 +279,6 @@ internal class FloatingLyricsHost(
     @Composable
     private fun OverlayContent() {
         val state by viewModel.uiState.collectAsState()
-        val playbackSpeed by viewModel.playbackSpeed.collectAsState()
         val lockedHint = stringResource(Res.string.floating_lyrics_locked_hint)
         LaunchedEffect(controlsVisible, controlsTouchedAt) {
             if (controlsVisible) {
@@ -302,16 +301,14 @@ internal class FloatingLyricsHost(
                 content = {
                     FloatingLyricsContent(
                         lyrics = state.lyrics,
-                        agents = state.lyricsAgents,
                         songId = state.currentSong?.id,
                         timingOffsetMs = state.lyricsOffsetMs,
                         isPlaying = state.isPlaying,
                         isLoading = state.isLyricsLoading,
                         currentPositionFlow = viewModel.currentPosition,
                         positionReader = viewModel::currentPositionMs,
-                        playbackSpeed = playbackSpeed,
                         // A tap toggles the controls, so it does not seek as well.
-                        onSeek = { _, _ -> },
+                        onSeek = null,
                         modifier = Modifier.fillMaxSize(),
                     )
                     if (controlsVisible) {

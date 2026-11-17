@@ -1,0 +1,398 @@
+package com.metrolist.shared.ui.components.lyrics
+
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.withFrameMillis
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.TextMeasurer
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDirection
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.metrolist.shared.api.lyrics.LyricsUtils
+import com.metrolist.shared.model.LyricsEntry
+import com.metrolist.shared.model.WordTimestamp
+import com.metrolist.shared.playback.PlaybackSeekSource
+import com.metrolist.shared.settings.Settings
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
+/** How the floating lyrics draw their lines; the main lyrics view has no equivalent and is not affected. */
+internal data class FloatingLyricsStyle(
+    val mainSp: Float,
+    val romanizationSp: Float,
+    val translationSp: Float,
+    /** Share of the window height above the active line. */
+    val activeLinePosition: Float,
+    val outline: Boolean,
+    val textColor: Color,
+)
+
+/**
+ * The floating window's lyric stack. The active line sits near the top so the lines after it stay in view, each
+ * line carries its own romanization and translation sizes, and text is outlined so it reads on any background.
+ * Lines scroll by themselves when the active line changes and can still be scrolled by hand.
+ */
+@Composable
+internal fun FloatingLyricsViewport(
+    lyrics: List<LyricsEntry>,
+    songId: String?,
+    timingOffsetMs: Int,
+    isPlaying: Boolean,
+    currentPositionFlow: StateFlow<Long>?,
+    positionReader: (() -> Long)?,
+    onSeek: ((Long, PlaybackSeekSource) -> Unit)?,
+    style: FloatingLyricsStyle,
+    modifier: Modifier = Modifier,
+) {
+    val offsetMs = LyricsUtils.combinedLyricsOffsetMs(timingOffsetMs, Settings.shared.globalLyricsOffsetMs)
+    val position = remember { mutableLongStateOf(0L) }
+    val positionFlow = remember(currentPositionFlow) { currentPositionFlow ?: MutableStateFlow(0L) }
+    val flowPosition by positionFlow.collectAsState()
+    val reader by rememberUpdatedState(positionReader)
+    LaunchedEffect(songId, isPlaying, positionReader == null) {
+        if (reader == null) return@LaunchedEffect
+        position.longValue = reader?.invoke() ?: 0L
+        while (isPlaying) {
+            withFrameMillis { }
+            position.longValue = reader?.invoke() ?: 0L
+        }
+    }
+    val lyricsPosition = { (if (positionReader != null) position.longValue else flowPosition) + offsetMs }
+
+    val isSynced = remember(lyrics) { LyricsUtils.hasPlaybackTiming(lyrics) }
+    val active by remember(lyrics, offsetMs) {
+        derivedStateOf { if (isSynced) LyricsUtils.findCurrentLineIndex(lyrics, lyricsPosition()) else -1 }
+    }
+    val listState = rememberLazyListState()
+    LaunchedEffect(songId, lyrics, active) {
+        if (isSynced) listState.animateScrollToItem(active.coerceAtLeast(0))
+    }
+
+    val romanization = Settings.shared.isLyricsRomanizationActive
+    val romanizeAsMain = Settings.shared.lyricsRomanizeAsMain
+    val showOriginal = Settings.shared.lyricsShowOriginalLyrics
+    val showTranslations = Settings.shared.lyricsShowTranslations
+    val measurer = rememberTextMeasurer()
+    val fontFamily = MaterialTheme.typography.bodyLarge.fontFamily
+    val density = LocalDensity.current
+
+    BoxWithConstraints(modifier) {
+        val topPadding = if (isSynced) maxHeight * style.activeLinePosition else 0.dp
+        val bottomPadding = if (isSynced) maxHeight - topPadding else 0.dp
+        val fadePx = with(density) { (style.mainSp * 1.5f).sp.toPx() }
+        LazyColumn(
+            state = listState,
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = topPadding, bottom = bottomPadding),
+            verticalArrangement = Arrangement.spacedBy((style.mainSp * LINE_GAP_RATIO).dp),
+            modifier =
+                Modifier
+                    .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+                    .drawWithContent {
+                        drawContent()
+                        // Past lines fade out under the top edge; the stack fades at the bottom edge.
+                        val fade = (fadePx / size.height).coerceAtMost(0.4f)
+                        drawRect(
+                            brush =
+                                Brush.verticalGradient(
+                                    0f to Color.Transparent,
+                                    fade to Color.Black,
+                                    1f - fade to Color.Black,
+                                    1f to Color.Transparent,
+                                ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    },
+        ) {
+            itemsIndexed(lyrics, key = { index, entry -> "$index:${entry.time}" }) { index, entry ->
+                val view =
+                    LineView.of(
+                        entry = entry,
+                        romanization = romanization,
+                        romanizeAsMain = romanizeAsMain,
+                        showOriginal = showOriginal,
+                        showTranslations = showTranslations,
+                    )
+                val distance = if (active < 0) 0 else index - active
+                val seek = onSeek
+                FloatingLyricLine(
+                    view = view,
+                    distance = distance,
+                    isActive = isSynced && distance == 0,
+                    measurer = measurer,
+                    fontFamily = fontFamily,
+                    style = style,
+                    positionProvider = lyricsPosition,
+                    modifier =
+                        if (seek != null && entry.text.isNotBlank()) {
+                            Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+                                seek(
+                                    LyricsUtils.lyricsSeekPositionForOffset(entry.time, offsetMs),
+                                    PlaybackSeekSource("lyrics_tap", mapOf("lineIndex" to index.toString(), "floating" to "true")),
+                                )
+                            }
+                        } else {
+                            Modifier
+                        },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun FloatingLyricLine(
+    view: LineView,
+    distance: Int,
+    isActive: Boolean,
+    measurer: TextMeasurer,
+    fontFamily: FontFamily?,
+    style: FloatingLyricsStyle,
+    positionProvider: () -> Long,
+    modifier: Modifier = Modifier,
+) {
+    if (view.main.isBlank()) {
+        Spacer(modifier.height((style.mainSp * BLANK_LINE_RATIO).dp))
+        return
+    }
+    val mainColor by animateColorAsState(lineColor(distance, style.textColor), tween(COLOR_FADE_MS))
+    val outlinePx = with(LocalDensity.current) { (style.mainSp * OUTLINE_RATIO).sp.toPx() }.coerceAtLeast(MIN_OUTLINE_PX)
+    val ranges = remember(view) { if (isActive) floatingWordRanges(view.main, view.mainWords) else null }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy((style.mainSp * SUB_LINE_GAP_RATIO).dp),
+    ) {
+        OutlinedLyricText(
+            text = view.main,
+            textStyle = lyricTextStyle(style.mainSp, fontFamily, FontWeight.Bold),
+            color = if (ranges != null) UNSUNG_COLOR else mainColor,
+            litColor = style.textColor,
+            outline = style.outline,
+            outlinePx = outlinePx,
+            measurer = measurer,
+            ranges = ranges,
+            positionProvider = positionProvider,
+        )
+        view.romanization?.let {
+            OutlinedLyricText(
+                text = it,
+                textStyle = lyricTextStyle(style.romanizationSp, fontFamily, FontWeight.Medium),
+                color = lerp(SUB_LINE_COLOR, mainColor, SUB_LINE_TINT),
+                litColor = mainColor,
+                outline = style.outline,
+                outlinePx = outlinePx * SUB_OUTLINE_RATIO,
+                measurer = measurer,
+            )
+        }
+        view.translation?.let {
+            OutlinedLyricText(
+                text = it,
+                textStyle = lyricTextStyle(style.translationSp, fontFamily, FontWeight.Medium),
+                color = lerp(SUB_LINE_COLOR, mainColor, SUB_LINE_TINT),
+                litColor = mainColor,
+                outline = style.outline,
+                outlinePx = outlinePx * SUB_OUTLINE_RATIO,
+                measurer = measurer,
+            )
+        }
+    }
+}
+
+/** Draws [text] centered and wrapped to the available width, optionally outlined and lit word by word. */
+@Composable
+private fun OutlinedLyricText(
+    text: String,
+    textStyle: TextStyle,
+    color: Color,
+    litColor: Color,
+    outline: Boolean,
+    outlinePx: Float,
+    measurer: TextMeasurer,
+    modifier: Modifier = Modifier,
+    ranges: List<FloatingWordRange>? = null,
+    positionProvider: (() -> Long)? = null,
+) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val widthPx = constraints.maxWidth
+        val layout = remember(text, textStyle, widthPx) { measurer.measure(text, textStyle, constraints = Constraints.fixedWidth(widthPx)) }
+        val stroke = remember(outlinePx) { Stroke(width = outlinePx, join = StrokeJoin.Round) }
+        val shadow = if (outline) null else TEXT_SHADOW
+        Canvas(Modifier.fillMaxWidth().height(with(LocalDensity.current) { layout.size.height.toDp() })) {
+            if (outline) drawText(layout, color = OUTLINE_COLOR, drawStyle = stroke)
+            drawText(layout, color = color, shadow = shadow)
+            val position = positionProvider?.invoke()
+            if (ranges != null && position != null) {
+                for (range in ranges) {
+                    val progress = ((position - range.startMs).toFloat() / (range.endMs - range.startMs)).coerceIn(0f, 1f)
+                    if (progress <= 0f) break
+                    val path = layout.getPathForRange(range.start, range.end)
+                    val bounds = path.getBounds()
+                    clipPath(path) {
+                        clipRect(bounds.left, bounds.top, bounds.left + bounds.width * progress, bounds.bottom) {
+                            drawText(layout, color = litColor, topLeft = Offset.Zero)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun lyricTextStyle(
+    sizeSp: Float,
+    fontFamily: FontFamily?,
+    weight: FontWeight,
+) = TextStyle(
+    fontSize = sizeSp.sp,
+    fontWeight = weight,
+    lineHeight = (sizeSp * LINE_HEIGHT_RATIO).sp,
+    textAlign = TextAlign.Center,
+    textDirection = TextDirection.Content,
+    fontFamily = fontFamily,
+)
+
+/** The line's own color: full strength for the active line, then easing off for the lines after it. */
+private fun lineColor(
+    distance: Int,
+    textColor: Color,
+): Color {
+    val strength =
+        when {
+            distance == 0 -> 1f
+            distance > 0 -> (UPCOMING_STRENGTH - UPCOMING_FALLOFF * (distance - 1)).coerceAtLeast(MIN_STRENGTH)
+            else -> PAST_STRENGTH
+        }
+    return lerp(DIM_COLOR, textColor, strength)
+}
+
+/** What a line shows after the romanization and translation settings are applied. */
+internal class LineView(
+    val main: String,
+    val mainWords: List<WordTimestamp>?,
+    val romanization: String?,
+    val translation: String?,
+) {
+    companion object {
+        fun of(
+            entry: LyricsEntry,
+            romanization: Boolean,
+            romanizeAsMain: Boolean,
+            showOriginal: Boolean,
+            showTranslations: Boolean,
+        ): LineView {
+            val romanized =
+                entry.romanizedText
+                    ?.takeIf { romanization }
+                    ?.replace(' ', ' ')
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() && !it.equals(entry.text.trim(), ignoreCase = true) }
+            val asMain = romanizeAsMain && romanized != null
+            val main = if (asMain) romanized.orEmpty() else entry.text
+            val sub = if (asMain) entry.text.takeIf { showOriginal } else romanized
+            val translation =
+                entry.translatedText
+                    ?.takeIf { showTranslations }
+                    ?.replace(' ', ' ')
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() && !it.equals(main.trim(), ignoreCase = true) && !it.equals(sub?.trim(), ignoreCase = true) }
+            return LineView(main, if (asMain) entry.romanizedWords else entry.words, sub, translation)
+        }
+    }
+}
+
+/** A word's span in the line text and the time it is sung, in milliseconds. */
+internal data class FloatingWordRange(
+    val start: Int,
+    val end: Int,
+    val startMs: Long,
+    val endMs: Long,
+)
+
+/**
+ * Finds each timed word in [text], in order. Returns null when the words do not spell the line, so the caller
+ * lights nothing rather than the wrong span.
+ */
+internal fun floatingWordRanges(
+    text: String,
+    words: List<WordTimestamp>?,
+): List<FloatingWordRange>? {
+    val timed =
+        words?.filter { !it.isBackground && !it.isLineTimed && it.endTime > it.startTime }?.takeIf { it.isNotEmpty() } ?: return null
+    var cursor = 0
+    return timed.map { word ->
+        val piece = word.text.trim()
+        val at = if (piece.isEmpty()) -1 else text.indexOf(piece, cursor)
+        if (at < 0) return null
+        cursor = at + piece.length
+        FloatingWordRange(at, cursor, (word.startTime * 1000).toLong(), (word.endTime * 1000).toLong())
+    }
+}
+
+const val FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION = 0.05f
+const val FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION = 0.5f
+val FLOATING_LYRICS_SUB_TEXT_SP_RANGE = 8..30
+
+private val OUTLINE_COLOR = Color.Black.copy(alpha = 0.85f)
+private val TEXT_SHADOW = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 2f), 8f)
+private val DIM_COLOR = Color(0xFF8A8A8A)
+private val UNSUNG_COLOR = Color(0xFFBDBDBD)
+private val SUB_LINE_COLOR = Color(0xFFD6D6D6)
+private const val SUB_LINE_TINT = 0.35f
+private const val UPCOMING_STRENGTH = 0.75f
+private const val UPCOMING_FALLOFF = 0.1f
+private const val MIN_STRENGTH = 0.3f
+private const val PAST_STRENGTH = 0.15f
+private const val LINE_GAP_RATIO = 0.4f
+private const val SUB_LINE_GAP_RATIO = 0.1f
+private const val BLANK_LINE_RATIO = 0.8f
+private const val LINE_HEIGHT_RATIO = 1.3f
+private const val OUTLINE_RATIO = 0.14f
+private const val SUB_OUTLINE_RATIO = 0.6f
+private const val MIN_OUTLINE_PX = 1.2f
+private const val COLOR_FADE_MS = 250

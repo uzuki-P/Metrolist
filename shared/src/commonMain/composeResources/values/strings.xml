@@ -3228,6 +3228,11 @@
     <string name="floating_lyrics_locked_hint">Floating lyrics locked. Turn off click-through in floating lyrics settings to unlock.</string>
     <string name="floating_lyrics_text_size">Text size</string>
     <string name="floating_lyrics_background">Background opacity</string>
+    <string name="floating_lyrics_romanization_size">Romanization size</string>
+    <string name="floating_lyrics_translation_size">Translation size</string>
+    <string name="floating_lyrics_text_outline">Text outline</string>
+    <string name="floating_lyrics_text_outline_description">Draw a dark outline around the lyrics so they stay readable on any background.</string>
+    <string name="floating_lyrics_active_line_position">Active line position</string>
     <string name="floating_lyrics_no_lyrics">No synced lyrics</string>
     <string name="floating_lyrics_show">Show floating lyrics</string>
     <string name="floating_lyrics_hide">Hide floating lyrics</string>

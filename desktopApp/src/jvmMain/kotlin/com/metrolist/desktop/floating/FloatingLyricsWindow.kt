@@ -200,7 +200,6 @@ private fun FloatingLyricsWindowContent(
     }
 
     var hovered by remember { mutableStateOf(false) }
-    val playbackSpeed by PlayerState.player.playbackSpeed.collectAsState()
     val lyrics = LyricsState.currentLyricsEntries
     val dragHandle = Modifier.windowDragHandle(window, support)
     MetrolistTheme(seedColor = UiState.seedColor) {
@@ -223,14 +222,12 @@ private fun FloatingLyricsWindowContent(
             content = {
                 FloatingLyricsContent(
                     lyrics = lyrics,
-                    agents = LyricsState.currentLyricsAgents,
                     songId = PlayerState.currentTrack?.id,
                     timingOffsetMs = LyricsState.currentLyricsOffsetMs,
                     isPlaying = PlayerState.isPlaying,
                     isLoading = LyricsState.isLyricsLoading,
                     currentPositionFlow = PlayerState.playbackPosition,
                     positionReader = PlayerState::currentMediaPositionMs,
-                    playbackSpeed = playbackSpeed,
                     onSeek = { positionMs, source -> if (settings.lyricsClickToSeek) PlayerState.seekToPosition(positionMs, source) },
                     // With nothing to scroll, the whole window moves it.
                     modifier = Modifier.fillMaxSize().then(if (lyrics.isEmpty()) dragHandle else Modifier),

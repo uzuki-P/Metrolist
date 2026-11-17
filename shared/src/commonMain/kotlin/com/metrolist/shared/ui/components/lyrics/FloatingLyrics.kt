@@ -63,26 +63,26 @@ import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 
 /**
- * The floating lyrics window's lyrics: the app's own scrolling [LyricsView] on the window's background, so a
- * taller window shows more lines and romanization and translation follow the main lyrics settings. Android
- * draws it in an overlay window and desktop in an always-on-top window; both pass the player's lyrics and clock.
+ * The floating lyrics window's lyrics: a [FloatingLyricsViewport] on the window's background, so a taller window
+ * shows more lines, while romanization and translation follow the main lyrics settings. Android draws it in an
+ * overlay window and desktop in an always-on-top window; both pass the player's lyrics and clock. A null
+ * [onSeek] leaves taps on the lines to the window.
  */
 @Composable
 fun FloatingLyricsContent(
     lyrics: List<LyricsEntry>,
-    agents: Map<String, AgentInfo>,
     songId: String?,
     timingOffsetMs: Int,
     isPlaying: Boolean,
     isLoading: Boolean,
     currentPositionFlow: StateFlow<Long>?,
     positionReader: (() -> Long)?,
-    playbackSpeed: Float,
-    onSeek: (Long, PlaybackSeekSource) -> Unit,
+    onSeek: ((Long, PlaybackSeekSource) -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     val settings = Settings.shared
     val noLyrics = stringResource(Res.string.floating_lyrics_no_lyrics)
+    val scale = settings.floatingLyricsTextScale.coerceIn(FLOATING_LYRICS_MIN_TEXT_SCALE, FLOATING_LYRICS_MAX_TEXT_SCALE)
     Box(
         modifier =
             modifier
@@ -99,42 +99,27 @@ fun FloatingLyricsContent(
                 modifier = Modifier.padding(16.dp),
             )
         } else {
-            val autoScroll = stringResource(Res.string.lyrics_auto_scroll_btn)
-            // The floating window sits outside the app's navigation, so give the view's back handler a
-            // dispatcher of its own; no back event ever reaches it.
-            val backDispatcher =
-                remember {
-                    object : NavigationEventDispatcherOwner {
-                        override val navigationEventDispatcher = NavigationEventDispatcher()
-                    }
-                }
-            CompositionLocalProvider(LocalNavigationEventDispatcherOwner provides backDispatcher) {
-                LyricsView(
-                    noLyricsText = noLyrics,
-                    autoScrollText = autoScroll,
-                    // No provider is passed, so the view shows no attribution line.
-                    lyricsProvidedBy = { "" },
-                    lyrics = lyrics,
-                    agents = agents,
-                    currentPositionFlow = currentPositionFlow,
-                    positionReader = positionReader,
-                    playbackSpeed = playbackSpeed,
-                    timingOffsetMs = timingOffsetMs,
-                    isPlaying = isPlaying,
-                    // The player keeps loading while it tries better sources; a spinner over the lines
-                    // would cover most of this small window.
-                    isLoading = isLoading && lyrics.isEmpty(),
-                    onSeek = onSeek,
-                    // The view sizes text from the main lyrics size; the window's 100% is FLOATING_LYRICS_TEXT_SP.
-                    textSizeMultiplier =
-                        settings.floatingLyricsTextScale.coerceIn(FLOATING_LYRICS_MIN_TEXT_SCALE, FLOATING_LYRICS_MAX_TEXT_SCALE) *
-                            FLOATING_LYRICS_TEXT_SP / settings.lyricsTextSize.coerceAtLeast(1f),
-                    textColor = Color.White,
-                    songId = songId,
-                    isLiquidBackground = false,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            FloatingLyricsViewport(
+                lyrics = lyrics,
+                songId = songId,
+                timingOffsetMs = timingOffsetMs,
+                isPlaying = isPlaying,
+                currentPositionFlow = currentPositionFlow,
+                positionReader = positionReader,
+                onSeek = onSeek,
+                style =
+                    FloatingLyricsStyle(
+                        mainSp = FLOATING_LYRICS_TEXT_SP * scale,
+                        romanizationSp = settings.floatingLyricsRomanizationTextSize * scale,
+                        translationSp = settings.floatingLyricsTranslationTextSize * scale,
+                        activeLinePosition =
+                            settings.floatingLyricsActiveLinePosition
+                                .coerceIn(FLOATING_LYRICS_MIN_ACTIVE_LINE_POSITION, FLOATING_LYRICS_MAX_ACTIVE_LINE_POSITION),
+                        outline = settings.floatingLyricsTextOutline,
+                        textColor = Color.White,
+                    ),
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 }
