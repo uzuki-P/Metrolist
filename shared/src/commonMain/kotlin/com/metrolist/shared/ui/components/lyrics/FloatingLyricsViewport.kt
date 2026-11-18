@@ -518,16 +518,16 @@ val FLOATING_LYRICS_LINE_SPACING_DP_RANGE = 0..40
 
 private val OUTLINE_COLOR = Color.Black.copy(alpha = 0.85f)
 private val TEXT_SHADOW = Shadow(Color.Black.copy(alpha = 0.75f), Offset(0f, 2f), 8f)
-private const val UNSUNG_STRENGTH = 0.6f
+private const val UNSUNG_STRENGTH = 0.72f
 private const val SUB_LINE_STRENGTH = 0.88f
-private const val UPCOMING_STRENGTH = 0.78f
+private const val UPCOMING_STRENGTH = 0.85f
 private const val UPCOMING_FALLOFF = 0.1f
-private const val MIN_STRENGTH = 0.4f
-private const val PAST_STRENGTH = 0.35f
+private const val MIN_STRENGTH = 0.6f
+private const val PAST_STRENGTH = 0.55f
 private const val SUB_LINE_GAP_RATIO = 0.12f
 private const val BLANK_LINE_RATIO = 0.8f
 private const val LINE_HEIGHT_RATIO = 1.3f
-private const val OUTLINE_RATIO = 0.14f
+private const val OUTLINE_RATIO = 0.08f
 private const val SUB_OUTLINE_RATIO = 0.6f
 private const val MIN_OUTLINE_PX = 1.2f
 private const val COLOR_FADE_MS = 250

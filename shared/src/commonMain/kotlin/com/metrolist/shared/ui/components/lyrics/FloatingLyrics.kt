@@ -30,6 +30,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.semantics.contentDescription
@@ -82,7 +84,9 @@ fun FloatingLyricsContent(
 ) {
     val settings = Settings.shared
     val noLyrics = stringResource(Res.string.floating_lyrics_no_lyrics)
-    val textColor = resolveLyricsTextColor(Color.White)
+    // The window is always a dark scrim, so a dark palette color from a light theme is lifted to stay readable.
+    val resolved = resolveLyricsTextColor(Color.White)
+    val textColor = if (resolved.luminance() < MIN_TEXT_LUMINANCE) lerp(resolved, Color.White, LIGHTEN_FRACTION) else resolved
     Box(
         modifier =
             modifier
@@ -262,3 +266,5 @@ fun FloatingLyricsResizeGrip(
 val FLOATING_LYRICS_SHAPE = RoundedCornerShape(20.dp)
 private const val BAR_BACKGROUND_ALPHA = 0.75f
 private const val BAR_FADE_MS = 150
+private const val MIN_TEXT_LUMINANCE = 0.5f
+private const val LIGHTEN_FRACTION = 0.8f
