@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
@@ -368,7 +369,8 @@ private fun DrawScope.drawLyricLayer(
     stroke: Stroke,
 ) {
     if (outline) drawText(layout, color = OUTLINE_COLOR, drawStyle = stroke)
-    drawText(layout, color = color, shadow = if (outline) null else TEXT_SHADOW)
+    // Android's text paint keeps the last draw style, so the fill must be explicit or it is stroked as well.
+    drawText(layout, color = color, shadow = if (outline) null else TEXT_SHADOW, drawStyle = Fill)
 }
 
 /** Lights [word] up to its progress with a soft leading edge, plus its glow while it is sung. */
@@ -387,18 +389,20 @@ private fun DrawScope.drawSungWord(
                 layout,
                 color = Color.Transparent,
                 shadow = Shadow(litColor.copy(alpha = GLOW_ALPHA * word.glow), Offset.Zero, fontPx * GLOW_BLUR_RATIO),
+                drawStyle = Fill,
             )
         }
     }
     val edgeX = bounds.left + bounds.width * word.progress
     clipRect(bounds.left, bounds.top - pad, edgeX, bounds.bottom + pad) {
         if (word.progress >= 1f) {
-            drawText(layout, color = litColor)
+            drawText(layout, color = litColor, drawStyle = Fill)
         } else {
             val softness = fontPx * SWEEP_EDGE_RATIO
             drawText(
                 layout,
                 brush = Brush.horizontalGradient(listOf(litColor, litColor.copy(alpha = 0f)), startX = edgeX - softness, endX = edgeX),
+                drawStyle = Fill,
             )
         }
     }
