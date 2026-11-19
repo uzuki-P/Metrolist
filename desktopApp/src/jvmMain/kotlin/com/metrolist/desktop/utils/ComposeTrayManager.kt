@@ -20,6 +20,7 @@ import com.metrolist.shared.generated.resources.floating_lyrics_lock
 import com.metrolist.shared.generated.resources.floating_lyrics_show
 import com.metrolist.shared.generated.resources.floating_lyrics_unlock
 import com.metrolist.shared.generated.resources.tray_by
+import com.metrolist.shared.generated.resources.tray_hide_miniplayer
 import com.metrolist.shared.generated.resources.tray_hide_window
 import com.metrolist.shared.generated.resources.tray_next_track
 import com.metrolist.shared.generated.resources.tray_pause
@@ -165,6 +166,7 @@ object ComposeTrayManager {
         val strHideWindow = stringResource(Res.string.tray_hide_window)
         val strShowWindow = stringResource(Res.string.tray_show_window)
         val strShowMiniplayer = stringResource(Res.string.tray_show_miniplayer)
+        val strHideMiniplayer = stringResource(Res.string.tray_hide_miniplayer)
         val strSettings = stringResource(Res.string.tray_settings)
         val strShowFloatingLyrics = stringResource(Res.string.floating_lyrics_show)
         val strHideFloatingLyrics = stringResource(Res.string.floating_lyrics_hide)
@@ -195,6 +197,7 @@ object ComposeTrayManager {
         val currentTitleLabel = currentTrack?.title?.takeIf { it.isNotBlank() } ?: strUnknownTitle
         val playPauseLabel = if (isPlaying) strPause else strPlay
         val windowToggleLabel = if (isWindowVisible.value) strHideWindow else strShowWindow
+        val miniplayerToggleLabel = if (PlayerState.showMiniplayer) strHideMiniplayer else strShowMiniplayer
         val onTrayAction: () -> Unit = {
             if (Settings.shared.desktopTrayToggleOnClick) {
                 if (isWindowVisible.value) {
@@ -254,7 +257,7 @@ object ComposeTrayManager {
                     }
 
                     Item(text = windowToggleLabel, onClick = { toggleWindow() })
-                    Item(text = strShowMiniplayer, onClick = { PlayerState.showMiniplayer = true })
+                    Item(text = miniplayerToggleLabel, onClick = { PlayerState.showMiniplayer = !PlayerState.showMiniplayer })
                     Item(
                         text = if (floatingLyricsEnabled) strHideFloatingLyrics else strShowFloatingLyrics,
                         onClick = { Settings.shared.floatingLyricsEnabled = !floatingLyricsEnabled },
@@ -320,7 +323,7 @@ object ComposeTrayManager {
                     }
 
                     Item(label = windowToggleLabel) { toggleWindow() }
-                    Item(label = strShowMiniplayer) { PlayerState.showMiniplayer = true }
+                    Item(label = miniplayerToggleLabel) { PlayerState.showMiniplayer = !PlayerState.showMiniplayer }
                     Item(label = if (floatingLyricsEnabled) strHideFloatingLyrics else strShowFloatingLyrics) {
                         Settings.shared.floatingLyricsEnabled = !floatingLyricsEnabled
                     }

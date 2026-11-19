@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
                 .putExtra(EXTRA_SETTINGS_PAGE, page.name)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 
+        const val ACTION_LASTFM = "com.metrolist.music.action.LASTFM"
         const val ACTION_OPEN_WIDGET_TARGET = "com.metrolist.music.action.OPEN_WIDGET_TARGET"
         const val EXTRA_WIDGET_TARGET_TYPE = "widget_target_type"
         const val EXTRA_WIDGET_TARGET_ID = "widget_target_id"
@@ -327,7 +328,7 @@ class MainActivity : ComponentActivity() {
                             navigationSaveKey = navigationRestoration.saveKey,
                             incomingIntent = incomingIntentState.value,
                             incomingPlaybackSong = incomingPlaybackSong,
-                            onExitApp = ::finish,
+                            onExitApp = ::exitApp,
                             onIncomingIntentConsumed = { consumed ->
                                 if (incomingIntentState.value === consumed) {
                                     incomingIntentState.value = null
