@@ -44,6 +44,8 @@ Mobile API library shelves show saved music albums while podcast shelves remain 
 
 Home cache identity respects account, locale and browse policy. Visitor publication must pass InnerTubeX's session compatibility check before accepting an in-flight response.
 
+With Classic recommendations enabled, unfiltered Home Quick picks come from local listening history: songs related to recently played tracks plus a few forgotten favourites, stripped of blocked and non-musical entries before sampling. Filtered Home shelves and their continuations keep API-first selection. In unfiltered Classic mode, Home continuations retain the current Quick picks, using API picks only if the current list is empty. Restored snapshots rebuild picks for the current mode, falling back to the snapshot's saved picks when its shortened feed has no API shelf.
+
 Legacy settings migration and backup imports convert `SYSTEM_DEFAULT` and lowercase `system` to `SYSTEM` for app language, content language and content country. Invalid saved content languages and countries return to the system locale before requests, including settings already migrated to v14. Language validation uses the platform locale catalog and bundled resource tags. Imports also clear v13's literal `null` visitor data without discarding valid session values. Failed restores keep their exact settings snapshot.
 
 Artist subscriber and monthly-audience counts use the same extractor without consulting the app or content locale. It preserves YouTube's digits, separators and compact unit, including counts after a translated label. Unknown or ambiguous formats retain YouTube's full text and omit the app's audience label. The shared Compose artist page, About view, menus and song details use that distinction on Android, desktop and iOS. Captured request pairs and refresh instructions are in [test fixtures](test-fixtures.md#artist-audience-counts).
@@ -68,7 +70,11 @@ A CDN 403 for an explicitly untokenized `_nopo` profile excludes that profile wi
 
 After a web-token rejection, audio requests try tokenless VISIONOS first. A failed probe continues through the normal clients. Video and YouTube canvas requests keep their video requirement and skip this audio-only preference.
 
+Android and desktop playback allow InnerTubeX's progressive transport, which iOS, downloads and canvas requests do not. `IOS_PRODUCER` needs no PO token, but YouTube only returns muxed 360p itag 18 for it, so selection tries it after every other healthy client. `PlaybackResource.isMuxedProgressive` keeps those files out of the persistent song caches, so a later play resolves a full-quality stream again.
+
 Token callbacks keep request-local results. A canceled Kotlin caller does not cancel a WebView promise; late results cannot overwrite another request. Check this with `node --test scripts/test_page_bound_po_token.mjs`.
+
+With crash reporting enabled, `PlaybackClientStats` counts resolve outcomes per client profile and playback successes and failures by category. It stores only catalog profile IDs and counters, never video IDs. Every fifth launch Android and desktop send one Sentry log per profile and reset the counts; sum `playback.play.ok` and `playback.play.fail.*` by `playback.profile` in Sentry Logs to compare clients. iOS counts locally but does not send them yet.
 
 ## SABR
 
@@ -106,4 +112,4 @@ For signed-out runs, use `-DinnerTubeSignedOut=true`. Upload probes need a new f
 
 ## Backend verification
 
-Run affected [platform checks](checks.md#platform-checks). Relevant suites include `SabrInputStreamTest`, `SabrPlaybackStreamsTest`, `SabrAudioFetchTest`, `DefaultStreamResolverTest` and the repository/parser tests beside changed code. Fixture sources and limits are in [test fixtures](test-fixtures.md).
+Run affected [platform checks](checks.md#platform-checks). Relevant suites are the parser tests beside changed code. Fixture sources and limits are in [test fixtures](test-fixtures.md).

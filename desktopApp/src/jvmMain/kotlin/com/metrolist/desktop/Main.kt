@@ -86,6 +86,7 @@ import androidx.compose.ui.window.rememberWindowState
 import coil3.compose.setSingletonImageLoaderFactory
 import com.materialkolor.ktx.isLight
 import com.materialkolor.utils.ColorUtils
+import com.metrolist.desktop.backup.DesktopAutomaticBackupScheduler
 import com.metrolist.desktop.backup.DesktopBackupRestoreManager
 import com.metrolist.desktop.crash.DesktopCrashRecovery
 import com.metrolist.desktop.deviceconnect.DesktopDeviceConnect
@@ -997,6 +998,7 @@ private fun runDesktopApp(args: Array<String>) {
                 }
             startup.trace("database")
             runBlocking { SongLikeState.recoverDatabaseLikes(database) }
+            DesktopAutomaticBackupScheduler.start(applicationScope)
             SongMetadataState.bind(database, applicationScope)
 
             LastFM.initialize(
@@ -1105,6 +1107,7 @@ private fun runDesktopApp(args: Array<String>) {
         startup.appFrame.await()
         applicationScope.launch(Dispatchers.IO) {
             if (settings.desktopOnboardingComplete) SentryManager.initialize()
+            SentryManager.reportPlaybackClientStats()
         }
         applicationScope.launch {
             observeDiscordInitialization { DiscordRpcManager.init(GlobalYouTube.client) }
