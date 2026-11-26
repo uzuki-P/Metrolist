@@ -101,6 +101,7 @@ import com.metrolist.shared.model.sortedForTopPlaylist
 import com.metrolist.shared.playlist.addSongToStoredPlaylist
 import com.metrolist.shared.playlist.moveSongInLocalPlaylist
 import com.metrolist.shared.playlist.removeSongFromLocalPlaylist
+import com.metrolist.shared.settings.ArtistNameAliases
 import com.metrolist.shared.settings.BlockedContent
 import com.metrolist.shared.settings.HiddenLibraryItems
 import com.metrolist.shared.settings.LibraryFilterType
@@ -208,6 +209,7 @@ internal fun MobileLibrary(
                         "ARTISTS" -> LibraryFilter.ARTISTS
                         "ALBUMS" -> LibraryFilter.ALBUMS
                         "PLAYLISTS" -> LibraryFilter.PLAYLISTS
+                        "PODCASTS" -> if (Settings.shared.hidePodcasts) null else LibraryFilter.PODCASTS
                         else -> null
                     }
                 }
@@ -645,6 +647,7 @@ internal fun MobileSongCollectionScreen(
         remember(localPlaylistId, playlistEntries, loadedSongs, blocked) {
             if (localPlaylistId != null) playlistEntries.map { it.first } else loadedSongs.filterNot(blocked::isBlocked)
         }
+    val artistAliases = if (isStoredCollection && collectionSort == CollectionSort.ARTIST) ArtistNameAliases.aliases else emptyMap()
     val songs =
         remember(
             baseSongs,
@@ -664,6 +667,7 @@ internal fun MobileSongCollectionScreen(
             collectionSort,
             collectionDirection,
             cachedCustomOrder,
+            artistAliases,
         ) {
             if (isStoredCollection) {
                 (
@@ -675,6 +679,7 @@ internal fun MobileSongCollectionScreen(
                     collectionSort,
                     collectionDirection,
                     customOrder = if (isCachedCollection) cachedCustomOrder else emptyList(),
+                    artistAliases = artistAliases,
                 ) {
                     metadata[it.id]
                 }
@@ -723,6 +728,8 @@ internal fun MobileSongCollectionScreen(
             PopupVisibility(visible = showAddSong && localPlaylistId != null) {
                 ModalBottomSheet(onDismissRequest = { showAddSong = false }) {
                     AddSongSheetContent(
+                        database = database,
+                        isLocalPlaylist = true,
                         existingSongIds = baseSongs.mapTo(mutableSetOf()) { it.id },
                         onDismiss = { showAddSong = false },
                         onAddSong = { song, allowDuplicate ->

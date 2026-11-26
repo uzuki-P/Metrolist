@@ -303,7 +303,6 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             ndk.debugSymbolLevel = "FULL"
-            optimization.keepRules { ignoreFrom("com.materialkolor:material-kolor-android:5.0.1") }
             manifestPlaceholders["appLabel"] = "Metrolist+"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -451,6 +450,8 @@ dependencies {
     implementation(libs.activity)
     implementation(libs.lifecycle.process)
     implementation(libs.androidx.work.runtime)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
     implementation(libs.material3)
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.navigation3.runtime)

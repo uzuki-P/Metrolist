@@ -73,10 +73,13 @@ import com.metrolist.shared.playlist.removeStoredPlaylistCover
 import com.metrolist.shared.playlist.setStoredPlaylistCover
 import com.metrolist.shared.playlist.storeIosPlaylistCover
 import com.metrolist.shared.playlist.uploadStoredPlaylistCover
+import com.metrolist.shared.settings.LibraryFilterType
 import com.metrolist.shared.settings.Settings
+import com.metrolist.shared.settings.defaultOpenTabRoot
 import com.metrolist.shared.state.GlobalYouTubeRepository
 import com.metrolist.shared.state.SongLikeState
 import com.metrolist.shared.state.SongMetadataState
+import com.metrolist.shared.state.closestContentCountry
 import com.metrolist.shared.state.contentCountryCodes
 import com.metrolist.shared.storage.IosAudioDownloadManager
 import com.metrolist.shared.storage.ResizableImageDiskCache
@@ -104,6 +107,7 @@ import com.metrolist.shared.utils.ArtworkSizingInterceptor
 import com.metrolist.shared.utils.Logger
 import com.metrolist.shared.utils.formatHistoryMonth
 import com.metrolist.shared.utils.isCrashReportingAvailable
+import com.metrolist.shared.widget.IosNowPlayingWidget
 import com.metrolist.shared.youtube.playback.IosPageBoundTokenHost
 import com.metrolist.shared.youtube.playback.IosPlaybackNetworkMonitor
 import com.metrolist.shared.youtube.playback.StreamResolver
@@ -168,6 +172,11 @@ fun handleOpenUrl(url: String) {
 @Composable
 fun MetrolistIOSApp() {
     val scope = rememberCoroutineScope()
+    remember {
+        if (defaultOpenTabRoot(Settings.shared.defaultOpenTab) == "LIBRARY") {
+            Settings.shared.libraryFilter = LibraryFilterType.DEFAULT
+        }
+    }
     val presenter = LocalUIViewController.current
     DisposableEffect(Unit) {
         val networkMonitor = IosPlaybackNetworkMonitor()
@@ -213,6 +222,10 @@ fun MetrolistIOSApp() {
             )
         }
     IosDiscordPresenceEffect(playbackController.state, player.playbackSpeed)
+    DisposableEffect(playbackController, player, appScope) {
+        IosNowPlayingWidget.bind(playbackController, player, appScope)
+        onDispose { IosNowPlayingWidget.unbind() }
+    }
     val listenTogetherClient = remember(appScope) { createHttpClient() }
     val listenTogetherMessages by rememberUpdatedState(listenTogetherPresentationMessages())
     val listenTogetherManager =
@@ -285,7 +298,8 @@ fun MetrolistIOSApp() {
                 (NSLocale.preferredLanguages.firstOrNull() as? String)
                     ?.takeIf(String::isNotBlank)
                     ?: current.localeIdentifier
-            preferred.replace('_', '-') to current.countryCode.orEmpty()
+            val languageTag = preferred.replace('_', '-')
+            languageTag to closestContentCountry(languageTag, current.countryCode.orEmpty())
         }
 
     suspend fun closeDatabaseForRestore() {
@@ -311,6 +325,9 @@ fun MetrolistIOSApp() {
 
     suspend fun reopenDatabaseAfterRestore() {
         MetrolistPlatform.reopenDatabaseAfterRestore()
+        if (defaultOpenTabRoot(Settings.shared.defaultOpenTab) == "LIBRARY") {
+            Settings.shared.libraryFilter = LibraryFilterType.DEFAULT
+        }
         databaseGeneration++
         sessionClosed = false
         pendingMobileDispose = null
@@ -384,6 +401,9 @@ fun MetrolistIOSApp() {
                     if (sessionClosed) reopenDatabaseAfterRestore()
                     if (databaseGeneration == generationBeforeRestore && result.isSuccess) {
                         MetrolistPlatform.refreshRestoredSettings()
+                        if (defaultOpenTabRoot(Settings.shared.defaultOpenTab) == "LIBRARY") {
+                            Settings.shared.libraryFilter = LibraryFilterType.DEFAULT
+                        }
                         appGeneration++
                     }
                     backupFailure = result.exceptionOrNull()

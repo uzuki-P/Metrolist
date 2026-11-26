@@ -19,6 +19,8 @@ import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.metrolist.shared.api.lyrics.AiProviderPresets
@@ -38,6 +40,7 @@ import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_g
 import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_lift
 import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_none
 import com.metrolist.shared.generated.resources.floating_lyrics_word_animation_sweep
+import com.metrolist.shared.repository.LyricsRepository
 import com.metrolist.shared.settings.LyricsTextSizeRange
 import com.metrolist.shared.settings.PlayerBackgroundStyle
 import com.metrolist.shared.settings.Settings
@@ -55,7 +58,9 @@ import com.metrolist.shared.ui.components.lyrics.FLOATING_LYRICS_TEXT_SP_RANGE
 import com.metrolist.shared.ui.components.lyrics.FloatingLyricsWordAnimation
 import com.metrolist.shared.ui.components.lyrics.LyricsOffsetEditor
 import com.metrolist.shared.ui.icons.MetrolistIcons
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
+import org.koin.mp.KoinPlatform
 import kotlin.math.roundToInt
 
 private fun isDirectLyricsTranslationProvider(provider: String): Boolean = provider == "DeepL (keyless)" || provider == "Google Translate"
@@ -287,6 +292,16 @@ internal fun SettingsUiRegistryBuilder.registerLyricsSettings(host: SharedSettin
                 ) {
                     LyricsProviderOrderSetting()
                 }
+            }
+            val scope = rememberCoroutineScope()
+            val lyricsRepository = remember { KoinPlatform.getKoin().get<LyricsRepository>() }
+            group("fetchedLyrics", stringResource(Res.string.fetched_lyrics)) {
+                action(
+                    id = "clearFetchedLyrics",
+                    title = stringResource(Res.string.clear_fetched_lyrics),
+                    description = stringResource(Res.string.clear_fetched_lyrics_description),
+                    confirmationMessage = stringResource(Res.string.clear_fetched_lyrics_confirm),
+                ) { scope.launch { lyricsRepository.clearFetchedLyrics() } }
             }
         }
     }

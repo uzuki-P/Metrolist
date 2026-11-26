@@ -8,18 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import java.io.Closeable
 import java.io.InputStream
 
-interface MdnsCastDiscovery : Closeable {
-    fun start(
-        onDeviceFound: (CastDevice) -> Unit,
-        onDeviceLost: (String) -> Unit,
-        onError: (CastError) -> Unit = {},
-    )
-
-    fun stop()
-
-    override fun close() = stop()
-}
-
 data class CastMedia(
     val title: String,
     val artworkUrl: String?,
@@ -39,7 +27,11 @@ data class CastMedia(
         song.title,
         artworkUrl,
         resource,
-        durationMs,
+        // A song started while casting has no prepared local player, so the caller's duration can be 0.
+        durationMs.takeIf { it > 0L }
+            ?: resource.durationSeconds?.takeIf { it > 0L }?.times(1_000L)
+            ?: song.duration?.takeIf { it > 0L }?.times(1_000L)
+            ?: 0L,
         song.artists.joinToString(", ") { it.name }.takeIf(String::isNotBlank),
         song.album?.name,
         queueEntry,

@@ -6,9 +6,15 @@ Shared collection covers resolve through `LibraryCovers.kt`. Keep user-selected 
 
 Player and collection artwork use square, centered crops. Full-player video thumbnails use the same preview source as song rows, including the thumbnail without encoded letterboxing. Dedicated video shelves, episode previews and video playback keep their wide layouts. On iOS, managed playlist-cover identifiers resolve against the current Application Support directory so container relocation does not break covers. Delete only managed files after the database change succeeds.
 
+Apple Music animated covers match versioned tracks against their full catalog titles before using the album artwork. Track and album qualifiers treat brackets and parentheses equally. Consecutive album notes beginning with `+` in trailing parentheses or brackets are ignored before matching names and detecting explicit or clean editions. Single and EP suffixes may differ across catalogs, while release labels such as Taylor's Version and Deluxe remain significant. A known album must match; only tracks without an album can fall back to a self-titled release. The updated matcher discards stored lookup results from the previous rules. Android also bypasses downloaded Apple Music covers stored before this matcher change.
+
+Spotify Canvas tries tracks from the requested album first, then other releases that pass the same title, artist and duration checks. This lets an EP or album track use a Canvas available on its single. Each Spotify track ID is queried at most once per lookup.
+
+Artwork lookups reject title, artist or album fields longer than 4,096 characters before normalization. Album suffix parsing is iterative and does not use recursive regular-expression matching.
+
 The portrait full-screen artwork continuation starts before a wide thumbnail's bottom edge. Its preview and detailed blur keep their fades, with no uncovered band between the image and continuation.
 
-Android mini-player and expanded-player artwork slots request crop explicitly through the player platform. The loading artwork uses the same crop through the first-frame fade. Fullscreen video uses fit, including letterboxing when the screen and video have different aspect ratios. PiP has its own scaling.
+Android mini-player video crops to its artwork slot. Expanded-player video fits its aspect ratio within the available space, with the player background outside the frame and controls inside it. The loading artwork keeps its crop through the first-frame fade. Fullscreen video uses fit, including letterboxing when the screen and video have different aspect ratios. PiP has its own scaling.
 
 Android full-player artwork uses software bitmaps so Compose and image decoding can share pixels. Export code copies hardware images when a software canvas requires it.
 
@@ -106,6 +112,8 @@ Expressive and Braccato active lines request wall-clock frames only while playin
 Player lyric captions have a separate alignment setting, centered by default. They reserve two line heights and center shorter text vertically. Keep the text crossfade without a size transform and measure the full content height so incoming lines, translations and romanization remain visible.
 
 ## Themes
+
+Generated palettes use MaterialKolor 6's upstream color engine, which corrects Expressive primary and on-primary colors for warm and pale seeds. Tonal spot, Vibrant, Expressive and Neutral use `SPEC_2025`; the other bundled styles resolve to `SPEC_2021` upstream. The 2026 specification applies to CMF, a separate palette that requires a second seed color. The selected palette style and accessibility contrast still apply to artwork, custom colors and Samsung wallpaper palettes. Other Android system palettes use the platform's color roles.
 
 Android publishes system dark mode to shared settings before palette resolution. Check Auto mode after a system theme change. Player action groups use Screen blending over non-solid dark backgrounds and SrcOver in light mode or over solid backgrounds. Filled player controls pair surface-variant containers with on-surface-variant icons, including over artwork in light mode.
 
