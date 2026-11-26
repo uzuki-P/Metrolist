@@ -80,5 +80,7 @@
 -dontwarn com.charleskorn.kaml.**
 -dontwarn org.jetbrains.compose.devtools.**
 -dontwarn org.jetbrains.compose.reload.**
+-dontwarn androidx.compose.ui.node.NucleusLayerDamage
+-dontwarn androidx.compose.ui.graphics.layer.NucleusGraphicsLayerHooks
 
 -keepattributes Exceptions,InnerClasses,Signature,EnclosingMethod,*Annotation*
